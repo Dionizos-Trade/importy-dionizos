@@ -1,0 +1,2684 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DIONIZOS TRADE — Kalkulator Import</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans,'system-ui',sans-serif);color:var(--color-text-primary,#1a1a1a);font-size:13px;background:var(--color-background-secondary,#f5f4f1)}
+:root{--or:#E8221A;--orl:#FDECEA;--orm:#F47B75;--green:#1D9E75;--blue:#378ADD;--red:#E24B4A}
+input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
+.app{display:flex;flex-direction:column;min-height:100vh}
+.topbar{background:var(--or);padding:11px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;flex-wrap:wrap;gap:6px}
+.topbar h1{font-size:14px;font-weight:600;color:white}
+.topbar p{font-size:10px;color:rgba(255,255,255,.72);margin-top:1px}
+.tnav{background:rgba(255,255,255,.18);border:none;color:white;border-radius:6px;padding:5px 11px;font-size:11px;cursor:pointer;transition:background .15s}
+.tnav.on,.tnav:hover{background:rgba(255,255,255,.35)}
+.tnav-wrap{display:flex;gap:3px;flex-wrap:wrap}
+.layout{flex:1;display:flex;min-height:0}
+.side{width:275px;flex-shrink:0;border-right:.5px solid var(--color-border-tertiary,#e0dedd);background:var(--color-background-primary,#fff);display:flex;flex-direction:column;overflow-y:auto}
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+/* ─── MOBILE ─────────────────────────────────────────────────────── */
+.mob-nav{display:none}
+.side-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.38);z-index:499}
+.side-backdrop.on{display:block}
+@media(max-width:640px){
+  /* topbar */
+  .topbar{padding:8px 12px;gap:4px}
+  .topbar h1{font-size:12px}
+  .topbar p{display:none}
+  .tnav-wrap{display:none}
+  /* layout stack */
+  .layout{flex-direction:column}
+  /* side panel → bottom drawer */
+  .side{
+    position:fixed;bottom:0;left:0;right:0;
+    width:100%;max-height:80vh;z-index:500;
+    border-right:none;border-radius:16px 16px 0 0;
+    border-top:.5px solid var(--color-border-tertiary,#e0dedd);
+    box-shadow:0 -8px 40px rgba(0,0,0,.22);
+    transform:translateY(100%);
+    transition:transform .32s cubic-bezier(.4,0,.2,1);
+    overflow-y:auto;-webkit-overflow-scrolling:touch;
+  }
+  .side.mob-open{transform:translateY(0)}
+  /* drag handle */
+  .side-handle{
+    display:block;width:36px;height:4px;border-radius:2px;
+    background:#d0cece;margin:10px auto 6px;flex-shrink:0;
+  }
+  /* main — full width, pad bottom for nav bar */
+  .main{width:100%;min-height:0}
+  .tb{padding-bottom:60px}
+  .pg{padding:10px 10px 0}
+  /* KPI 2×2 */
+  .hg{grid-template-columns:repeat(2,1fr)}
+  .hv{font-size:14px}
+  .ac .hv{font-size:17px}
+  /* inputs bigger for touch */
+  .inp input,.inp select{height:36px;font-size:13px}
+  .s{padding:12px 14px}
+  .g2{gap:8px}
+  .btn{padding:12px;font-size:13px;margin:8px 12px;width:calc(100% - 24px)}
+  /* bottom nav bar */
+  .mob-nav{
+    display:flex;position:fixed;bottom:0;left:0;right:0;
+    background:var(--color-background-primary,#fff);
+    border-top:.5px solid var(--color-border-tertiary,#e0dedd);
+    box-shadow:0 -2px 14px rgba(0,0,0,.09);
+    z-index:498;padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  .mob-nav-btn{
+    flex:1;display:flex;flex-direction:column;align-items:center;
+    gap:3px;padding:7px 2px 5px;
+    border:none;background:transparent;cursor:pointer;
+    font-size:9px;color:var(--color-text-secondary,#6b6b6b);
+    transition:color .15s;-webkit-tap-highlight-color:transparent;
+  }
+  .mob-nav-btn.on{color:var(--or)}
+  .mob-nav-btn svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+  /* settings button with indicator */
+  .mob-settings-dot{
+    width:7px;height:7px;background:var(--green);border-radius:50%;
+    position:absolute;top:6px;right:calc(50% - 16px);
+    border:1.5px solid #fff;display:none;
+  }
+  .mob-settings-dot.on{display:block}
+  /* fullview — padding na dole pod nav */
+  .fullview{padding-bottom:70px}
+  /* tabs na mobile — scroll + przycisk Ustaw. */
+  .tabs{overflow-x:auto;-webkit-overflow-scrolling:touch;padding-right:0}
+  #mob-open-btn{display:flex!important}
+  .tab{padding:10px 11px;font-size:11px}
+
+  /* cards grid 2 kolumny na wąskim */
+  .cards-grid{grid-template-columns:repeat(2,1fr);padding:8px}
+}
+@media(min-width:641px){
+  .mob-nav{display:none!important}
+  .side-backdrop{display:none!important}
+  .side-handle{display:none}
+}
+/* ─────────────────────────────────────────────────────────────────── */
+.s{padding:9px 12px;border-bottom:.5px solid var(--color-border-tertiary,#e0dedd)}
+.st{font-size:9px;font-weight:600;color:var(--color-text-secondary,#6b6b6b);text-transform:uppercase;letter-spacing:.08em;margin-bottom:7px}
+.r{margin-bottom:6px}.r:last-child{margin:0}
+.l{font-size:10px;color:var(--color-text-secondary,#6b6b6b);margin-bottom:2px}
+.inp{display:flex;gap:4px;align-items:center}
+.inp input,.inp select{flex:1;height:27px;font-size:11px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:6px;padding:0 6px;background:var(--color-background-primary,#fff);color:var(--color-text-primary,#1a1a1a)}
+.inp .u{font-size:10px;color:var(--color-text-secondary,#6b6b6b);white-space:nowrap}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.btn{display:block;width:calc(100% - 22px);margin:9px 11px;background:var(--or);color:white;border:none;border-radius:6px;padding:8px;font-size:12px;cursor:pointer;font-weight:500;transition:opacity .15s}
+.btn:hover{opacity:.88}
+.btn.g{background:transparent;color:var(--or);border:.5px solid var(--or)}
+.btn.g:hover{background:var(--orl)}
+.spt{display:flex;border:.5px solid var(--color-border-secondary,#ccc);border-radius:6px;overflow:hidden;margin-bottom:5px}
+.sp{flex:1;padding:4px;font-size:10px;cursor:pointer;background:transparent;border:none;color:var(--color-text-secondary,#6b6b6b);text-align:center}
+.sp.on{background:var(--or);color:white}
+.mode-info{background:var(--color-background-secondary,#f5f4f1);border-radius:6px;padding:7px 9px;font-size:10px;color:var(--color-text-secondary,#6b6b6b);margin-top:5px;line-height:1.5}
+.cur-toggle{display:flex;border:.5px solid var(--color-border-secondary,#ccc);border-radius:5px;overflow:hidden;margin-top:3px}
+.ct-btn{flex:1;padding:3px;font-size:10px;cursor:pointer;background:transparent;border:none;color:var(--color-text-secondary,#6b6b6b);text-align:center}
+.ct-btn.on{background:var(--or);color:white;font-weight:500}
+.tabs{display:flex;border-bottom:.5px solid var(--color-border-tertiary,#e0dedd);background:var(--color-background-primary,#fff);flex-shrink:0;overflow-x:auto}
+.tab{padding:8px 13px;font-size:11px;cursor:pointer;color:var(--color-text-secondary,#6b6b6b);border-bottom:2px solid transparent;white-space:nowrap}
+.tab.on{color:var(--or);border-bottom-color:var(--or);font-weight:500}
+.tb{flex:1;overflow:auto}
+.pg{display:none;padding:12px 14px}
+.pg.on{display:block}
+.hg{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--color-border-tertiary,#e0dedd);border-radius:7px;overflow:hidden;border:.5px solid var(--color-border-tertiary,#e0dedd);margin-bottom:11px}
+.hc{background:var(--color-background-primary,#fff);padding:8px 10px}
+.hc.ac{background:var(--or)}
+.hl{font-size:9px;color:var(--color-text-secondary,#6b6b6b);margin-bottom:2px;text-transform:uppercase;letter-spacing:.04em}
+.ac .hl{color:rgba(255,255,255,.75)}
+.hv{font-size:16px;font-weight:600}
+.ac .hv{color:white;font-size:20px}
+.hs-kpi{font-size:10px;color:var(--color-text-secondary,#6b6b6b);margin-top:1px}
+.ac .hs-kpi{color:rgba(255,255,255,.7)}
+.alrt{background:var(--orl);border:.5px solid var(--orm);border-radius:6px;padding:7px 10px;font-size:11px;color:#854F0B;margin-bottom:9px}
+.pt{width:100%;border-collapse:collapse;font-size:11px}
+.pt th{font-size:9px;color:var(--color-text-secondary,#6b6b6b);font-weight:500;text-align:left;padding:5px 6px;border-bottom:.5px solid var(--color-border-tertiary,#e0dedd);background:var(--color-background-primary,#fff);position:sticky;top:0;white-space:nowrap;z-index:1}
+.pt td{padding:5px 6px;border-bottom:.5px solid var(--color-border-tertiary,#e0dedd);vertical-align:middle}
+.pt tr:hover td{background:var(--orl)}
+.pt td input{height:21px;font-size:10px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:3px;padding:0 4px;background:var(--color-background-primary,#fff);color:var(--color-text-primary,#1a1a1a)}
+.cc{width:8px;height:8px;border-radius:2px;display:inline-block;margin-right:4px;vertical-align:middle}
+.chi{color:var(--or);font-weight:500}
+.db{background:transparent;border:none;color:var(--red);cursor:pointer;font-size:11px;padding:1px 3px}
+.vw{background:var(--color-background-secondary,#f5f4f1);padding:12px 14px;display:flex;gap:12px}
+.cl{width:160px;flex-shrink:0}
+.clt{font-size:9px;color:var(--color-text-secondary,#6b6b6b);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px}
+.cli{display:flex;align-items:center;gap:4px;margin-bottom:2px;font-size:11px}
+.cld{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+.cln{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.clp{font-size:10px;color:var(--color-text-secondary,#6b6b6b);white-space:nowrap}
+.clb{height:3px;border-radius:2px;background:var(--color-border-tertiary,#e0dedd);margin-bottom:4px;overflow:hidden}
+.clbf{height:100%;border-radius:2px}
+.cbw{padding:8px 14px 10px;background:var(--color-background-primary,#fff);border-top:.5px solid var(--color-border-tertiary,#e0dedd)}
+.cbl2{font-size:9px;color:var(--color-text-secondary,#6b6b6b);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px}
+.cbt{height:7px;border-radius:3px;overflow:hidden;display:flex;background:var(--color-background-secondary,#f5f4f1)}
+.cbs{height:100%}
+.cbleg{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.cbli{display:flex;align-items:center;gap:3px;font-size:10px;color:var(--color-text-secondary,#6b6b6b)}
+.cbld{width:7px;height:7px;border-radius:1px;flex-shrink:0}
+.dc{background:var(--color-background-primary,#fff);border:.5px solid var(--color-border-tertiary,#e0dedd);border-radius:7px;overflow:hidden;margin-bottom:10px}
+.dh{padding:8px 11px;border-bottom:.5px solid var(--color-border-tertiary,#e0dedd);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.fullview{display:none;flex:1;flex-direction:column;padding:14px;overflow:auto;background:var(--color-background-primary,#fff)}
+.dz{border:2px dashed var(--color-border-secondary,#ccc);border-radius:9px;padding:22px;text-align:center;cursor:pointer;margin-bottom:10px}
+.dz:hover{border-color:var(--or);background:var(--orl)}
+.mc{background:var(--color-background-primary,#fff);border:.5px solid var(--color-border-tertiary,#e0dedd);border-radius:8px;padding:12px;margin-bottom:10px}
+.mc h3{font-size:13px;font-weight:500;margin-bottom:4px}
+.mr{display:flex;align-items:center;gap:7px;margin-bottom:5px;font-size:11px}
+.mf{width:150px;font-weight:500;flex-shrink:0}
+.mr select{flex:1;height:25px;font-size:11px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:4px;padding:0 5px;background:var(--color-background-primary,#fff);color:var(--color-text-primary,#1a1a1a)}
+.pw{overflow:auto;max-height:120px;border:.5px solid var(--color-border-tertiary,#e0dedd);border-radius:5px;margin:7px 0}
+.pw table{width:100%;border-collapse:collapse;font-size:10px}
+.pw th{padding:3px 6px;background:var(--color-background-secondary,#f5f4f1);font-size:9px;color:var(--color-text-secondary,#6b6b6b);border-bottom:.5px solid var(--color-border-tertiary,#e0dedd);white-space:nowrap}
+.pw td{padding:3px 6px;border-bottom:.5px solid var(--color-border-tertiary,#e0dedd);white-space:nowrap;max-width:110px;overflow:hidden;text-overflow:ellipsis}
+.ok{display:inline-block;background:#EAF3DE;color:#3B6D11;font-size:9px;padding:1px 5px;border-radius:5px}
+.wn{display:inline-block;background:#FAEEDA;color:#854F0B;font-size:9px;padding:1px 5px;border-radius:5px}
+/* CARDS */
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(195px,1fr));gap:10px;padding:12px 14px}
+.pcard{background:var(--color-background-primary,#fff);border:.5px solid var(--color-border-tertiary,#e0dedd);border-radius:10px;overflow:hidden;transition:box-shadow .15s}
+.pcard:hover{box-shadow:0 3px 14px rgba(0,0,0,.09)}
+.pcard-img{width:100%;height:128px;background:var(--color-background-secondary,#f5f4f1);display:flex;align-items:center;justify-content:center;font-size:32px;color:#ccc;border-bottom:.5px solid var(--color-border-tertiary,#e0dedd);overflow:hidden}
+.pcard-img img{width:100%;height:128px;object-fit:cover;display:block}
+.pcard-body{padding:9px 11px}
+.pcard-name{font-size:11px;font-weight:600;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pcard-meta{font-size:10px;color:var(--color-text-secondary,#6b6b6b);margin-bottom:5px}
+.pcard-price{font-size:15px;font-weight:700;color:var(--or)}
+.pcard-sub{font-size:9px;color:var(--color-text-secondary,#6b6b6b);margin-top:1px}
+.pcard-hs{display:inline-block;background:#EEF3FA;color:var(--blue);font-size:9px;padding:2px 6px;border-radius:4px;margin-top:5px;font-family:monospace;font-weight:600}
+/* QUOTES */
+.qcard{background:var(--color-background-primary,#fff);border:.5px solid var(--color-border-tertiary,#e0dedd);border-radius:8px;padding:11px 13px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:all .15s;margin-bottom:7px}
+.qcard:hover{border-color:var(--or);background:var(--orl)}
+.qcard-dot{width:36px;height:36px;border-radius:8px;background:var(--or);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px;color:white;font-weight:700}
+.qcard-body{flex:1;min-width:0}
+.qcard-name{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qcard-meta{font-size:10px;color:var(--color-text-secondary,#6b6b6b);margin-top:2px}
+.qcard-price{font-size:13px;font-weight:600;color:var(--or);white-space:nowrap;margin-right:4px}
+.qcard-del{background:transparent;border:none;color:#ccc;cursor:pointer;font-size:15px;padding:4px;border-radius:4px}
+.qcard-del:hover{color:var(--red)}
+.q-empty{text-align:center;padding:40px 20px;color:var(--color-text-secondary,#6b6b6b);font-size:12px}
+/* HS DB */
+.hs-form{background:var(--color-background-secondary,#f5f4f1);border-radius:7px;padding:11px 12px;margin-bottom:10px;display:flex;gap:7px;flex-wrap:wrap;align-items:flex-end}
+.hs-form label{font-size:9px;color:var(--color-text-secondary,#6b6b6b);display:block;margin-bottom:2px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.hs-form input{height:27px;font-size:11px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:5px;padding:0 6px;background:white;color:var(--color-text-primary,#1a1a1a)}
+.hs-tbl{width:100%;border-collapse:collapse;font-size:11px}
+.hs-tbl th{font-size:9px;color:var(--color-text-secondary,#6b6b6b);font-weight:500;text-align:left;padding:5px 8px;border-bottom:.5px solid var(--color-border-tertiary,#e0dedd);background:var(--color-background-primary,#fff);white-space:nowrap}
+.hs-tbl td{padding:6px 8px;border-bottom:.5px solid var(--color-border-tertiary,#e0dedd);vertical-align:middle}
+.hs-tbl tr:hover td{background:var(--orl)}
+.hs-code{font-family:monospace;font-size:12px;font-weight:700;color:var(--blue);background:#EEF3FA;padding:2px 6px;border-radius:4px}
+.hs-duty-badge{font-weight:700;color:var(--or)}
+.hs-tag{display:inline-block;background:var(--color-background-secondary,#f5f4f1);color:var(--color-text-secondary,#6b6b6b);font-size:9px;padding:1px 5px;border-radius:4px}
+/* PRODUCTS DB */
+.pdb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;padding:12px 14px}
+.pdb-card{background:var(--color-background-primary,#fff);border:.5px solid var(--color-border-tertiary,#e0dedd);border-radius:10px;overflow:hidden;transition:box-shadow .15s;cursor:pointer;position:relative}
+.pdb-card:hover{box-shadow:0 3px 14px rgba(0,0,0,.09)}
+.pdb-card-img{width:100%;height:160px;background:var(--color-background-secondary,#f5f4f1);display:flex;align-items:center;justify-content:center;font-size:36px;color:#ccc;border-bottom:.5px solid var(--color-border-tertiary,#e0dedd);overflow:hidden}
+.pdb-card-img img{width:100%;height:160px;object-fit:cover;display:block;image-rendering:auto}
+.pdb-card-body{padding:9px 11px}
+.pdb-sku{font-family:monospace;font-size:10px;font-weight:700;color:var(--blue);background:#EEF3FA;padding:2px 6px;border-radius:4px;display:inline-block;margin-bottom:5px}
+.pdb-name{font-size:12px;font-weight:600;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pdb-price{font-size:16px;font-weight:700;color:var(--or);margin-top:4px}
+.pdb-meta{font-size:10px;color:var(--color-text-secondary,#6b6b6b);margin-top:2px}
+.pdb-hist{font-size:10px;margin-top:7px;border-top:.5px solid var(--color-border-tertiary,#e0dedd);padding-top:6px}
+.pdb-hist-row{display:flex;justify-content:space-between;padding:2px 0;border-bottom:.5px solid var(--color-border-tertiary,#e0dedd)}
+.pdb-hist-row:last-child{border:none}
+.pdb-hist-date{color:var(--color-text-secondary,#6b6b6b)}
+.pdb-hist-price{font-weight:600;color:var(--or)}
+.pdb-hist-diff{font-size:9px;padding:1px 5px;border-radius:4px}
+.diff-up{background:#FCEBEB;color:#A32D2D}
+.diff-dn{background:#EAF3DE;color:#3B6D11}
+.pdb-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1001;align-items:center;justify-content:center}
+.pdb-modal.on{display:flex}
+.pdb-detail{background:var(--color-background-primary,#fff);border-radius:12px;width:560px;max-width:95vw;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.2);overflow:hidden}
+.pdb-search{display:flex;gap:7px;padding:12px 14px;border-bottom:.5px solid var(--color-border-tertiary,#e0dedd);background:var(--color-background-primary,#fff);flex-shrink:0}
+.pdb-search input{flex:1;height:30px;font-size:12px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:7px;padding:0 10px;background:var(--color-background-secondary,#f5f4f1)}
+/* TARIC MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;align-items:center;justify-content:center}
+.modal-overlay.on{display:flex}
+.modal{background:var(--color-background-primary,#fff);border-radius:12px;width:640px;max-width:95vw;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.modal-head{padding:14px 16px;border-bottom:.5px solid var(--color-border-tertiary,#e0dedd);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.modal-head h3{font-size:13px;font-weight:600}
+.modal-close{background:transparent;border:none;font-size:18px;cursor:pointer;color:var(--color-text-secondary,#6b6b6b);line-height:1;padding:2px 6px;border-radius:4px}
+.modal-close:hover{background:var(--color-background-secondary,#f5f4f1)}
+.modal-body{flex:1;overflow:auto;padding:14px 16px}
+.modal-foot{padding:10px 16px;border-top:.5px solid var(--color-border-tertiary,#e0dedd);display:flex;gap:7px;justify-content:flex-end;flex-shrink:0}
+.modal-foot button{height:30px;padding:0 14px;font-size:11px;border-radius:6px;cursor:pointer;font-weight:500;border:none}
+.mf-ok{background:var(--or);color:white}
+.mf-ok:hover{opacity:.88}
+.mf-ok:disabled{opacity:.4;cursor:default}
+.mf-cancel{background:var(--color-background-secondary,#f5f4f1);color:var(--color-text-primary,#1a1a1a)}
+.taric-sb{display:flex;gap:6px;margin-bottom:10px}
+.taric-sb input{flex:1;height:30px;font-size:11px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:6px;padding:0 8px;background:var(--color-background-primary,#fff);color:var(--color-text-primary,#1a1a1a)}
+.taric-sb button{height:30px;padding:0 13px;font-size:11px;border:none;border-radius:6px;cursor:pointer;font-weight:500;background:var(--blue);color:white}
+.taric-info{background:#EEF3FA;border:.5px solid #c5d9f2;border-radius:6px;padding:8px 10px;font-size:10px;color:#1a4a7a;margin-bottom:9px;line-height:1.5}
+.tri{padding:9px 11px;border:.5px solid var(--color-border-tertiary,#e0dedd);border-radius:7px;margin-bottom:6px;cursor:pointer;transition:all .12s}
+.tri:hover{border-color:var(--or);background:var(--orl)}
+.tri.sel{border-color:var(--or);background:var(--orl)}
+.tri-code{font-family:monospace;font-weight:700;color:var(--blue);font-size:13px}
+.tri-desc{font-size:11px;margin-top:2px}
+.tri-duty{font-size:10px;color:var(--or);font-weight:600;margin-top:2px}
+.mult-box{display:none;margin-top:7px;background:var(--orl);border:.5px solid var(--orm);border-radius:6px;padding:8px 10px}
+</style>
+</head>
+<body>
+<div class="app">
+
+<div class="topbar">
+  <div style="display:flex;align-items:center;gap:9px">
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><rect x="2" y="7" width="20" height="14" rx="2" stroke="white" stroke-width="1.5"/><path d="M2 11h20M8 11v10" stroke="white" stroke-width="1.5"/></svg>
+    <div><h1>DIONIZOS TRADE — Kalkulator Import</h1><p>v14.0 · Koszt jednostkowy · CBM · Cło CN 🇨🇳 · VAT · Sync ⚡</p></div>
+  </div>
+  <div class="tnav-wrap">
+    <button class="tnav on" onclick="sv('calc')">📊 Kalkulator</button>
+    <button class="tnav" onclick="sv('import')">📂 Import Excel</button>
+    <button class="tnav" onclick="sv('sim')">🚢 Symulacja</button>
+    <button class="tnav" onclick="sv('quotes')">💾 Wyceny</button>
+    <button class="tnav" onclick="sv('products')">📦 Produkty</button>
+    <button class="tnav" onclick="sv('hs')">🏷️ Kody HS</button>
+  </div>
+</div>
+
+<!-- KALKULATOR -->
+<div class="layout" id="vc" style="display:flex">
+  <div class="side-backdrop" id="side-backdrop" onclick="closeMobSide()"></div>
+  <div class="side" id="side-panel">
+    <span class="side-handle"></span>
+    <div class="s">
+      <div class="st">Kontener i fracht</div>
+      <div class="r"><div class="l">Typ kontenera</div>
+        <div class="inp"><select id="ct" onchange="cc()">
+          <option value="33">20' GP (33 m³)</option>
+          <option value="60">40' GP (60 m³)</option>
+          <option value="68" selected>40' HQ (68 m³)</option>
+          <option value="0">Własny</option>
+        </select></div></div>
+      <div class="r" id="cvr" style="display:none"><div class="l">Pojemność m³</div><div class="inp"><input type="number" id="cv" value="68" min="1" onchange="rc()"></div></div>
+      <div class="r"><div class="l">Koszt frachtu FCL</div><div class="inp"><input type="number" id="fr" value="10000" step="100" min="0" onchange="rc()"><span class="u" id="fru">PLN</span></div></div>
+      <div class="g2">
+        <div class="r"><div class="l">Waluta</div><div class="inp"><select id="cu" onchange="rc()"><option>PLN</option><option>EUR</option><option>USD</option></select></div></div>
+        <div class="r"><div class="l">Kurs CNY→<span id="cur-lbl">PLN</span></div><div class="inp"><input type="number" id="ra" value="0.57" step="0.001" min="0.001" onchange="rc()"></div></div>
+      </div>
+    </div>
+    <div class="s">
+      <div class="st">Transport lokalny Chiny</div>
+      <div class="r">
+        <div class="l">Waluta "Shipping inside China"</div>
+        <div class="cur-toggle">
+          <button class="ct-btn on" id="scn-cny" onclick="setShipCur('CNY')">¥ Yuan (CNY)</button>
+          <button class="ct-btn" id="scn-loc" onclick="setShipCur('LOCAL')">Już w <span id="scn-loc-lbl">PLN</span></button>
+        </div>
+        <div style="font-size:9px;color:var(--color-text-secondary,#6b6b6b);margin-top:3px" id="scn-hint">Przeliczane × kurs CNY</div>
+      </div>
+    </div>
+    <div class="s">
+      <div class="st">Koszty wspólne importu</div>
+      <div class="g2">
+        <div class="r"><div class="l">Agencja celna</div><div class="inp"><input type="number" id="kc" value="500" step="50" min="0" onchange="rc()"></div></div>
+        <div class="r"><div class="l">Koszty port.</div><div class="inp"><input type="number" id="kp" value="300" step="50" min="0" onchange="rc()"></div></div>
+        <div class="r"><div class="l">Dostawa PL</div><div class="inp"><input type="number" id="kl" value="800" step="50" min="0" onchange="rc()"></div></div>
+        <div class="r"><div class="l">Ubezpieczenie</div><div class="inp"><input type="number" id="ki" value="200" step="50" min="0" onchange="rc()"></div></div>
+      </div>
+      <div class="r"><div class="l">Inne</div><div class="inp"><input type="number" id="ko" value="0" step="50" min="0" onchange="rc()"><span class="u" id="ku">PLN</span></div></div>
+    </div>
+    <div class="s">
+      <div class="st">Cło i VAT</div>
+      <div class="g2">
+        <div class="r"><div class="l">Cło % 🇨🇳 <span style="font-size:9px;color:var(--color-text-secondary,#6b6b6b)">(import CN)</span></div><div class="inp"><input type="number" id="du" value="6.5" step="0.1" min="0" max="100" onchange="rc()"><span class="u">%</span></div></div>
+      <div id="cn-duty-info" style="display:none;font-size:9px;color:#854F0B;background:#FAEEDA;border-radius:4px;padding:3px 6px;margin-top:2px"></div>
+        <div class="r"><div class="l">VAT (%)</div><div class="inp"><input type="number" id="va" value="23" step="1" min="0" max="100" onchange="rc()"><span class="u">%</span></div></div>
+      </div>
+    </div>
+    <div class="s">
+      <div class="st">Podział kosztów wspólnych</div>
+      <div class="spt">
+        <button class="sp on" onclick="ss('cbm')">Wg CBM</button>
+        <button class="sp" onclick="ss('weight')">Wg wagi</button>
+        <button class="sp" onclick="ss('value')">Wg wartości</button>
+      </div>
+      <div class="mode-info" id="mode-info">Koszty wspólne przypisane proporcjonalnie do m³ każdego produktu.</div>
+      <div class="mult-box" id="mult-box">
+        <div style="font-size:10px;font-weight:500;color:#854F0B;margin-bottom:4px">Mnożnik kosztowy (auto)</div>
+        <div style="font-size:13px;font-weight:500;color:var(--or)" id="mult-val">×1.00</div>
+        <div style="font-size:9px;color:#854F0B;margin-top:2px" id="mult-formula">—</div>
+      </div>
+    </div>
+    <div class="s" style="flex:1">
+      <div class="st">Notatka</div>
+      <div class="r"><div class="l">Data wyceny</div><div class="inp"><input type="date" id="qd" style="font-size:11px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:6px;padding:0 6px;height:27px;background:var(--color-background-primary,#fff);color:var(--color-text-primary,#1a1a1a);flex:1"></div></div>
+      <div class="r"><div class="l">Uwagi</div><div class="inp"><input type="text" id="qn" placeholder="np. Dostawa Q2 2026" style="font-size:11px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:6px;padding:0 6px;height:27px;background:var(--color-background-primary,#fff);color:var(--color-text-primary,#1a1a1a);flex:1"></div></div>
+    </div>
+    <div style="padding:9px 11px;border-top:.5px solid var(--color-border-tertiary,#e0dedd)">
+      <div style="font-size:9px;color:var(--color-text-secondary,#6b6b6b);margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em">Zapisz wycenę</div>
+      <div style="display:flex;gap:5px">
+        <input type="text" id="qname" placeholder="Nazwa wyceny…" style="flex:1;height:27px;font-size:11px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:5px;padding:0 7px;background:var(--color-background-primary,#fff);color:var(--color-text-primary,#1a1a1a)">
+        <button onclick="saveQuote()" title="Zapisz wycenę" style="height:27px;width:32px;font-size:14px;border:none;border-radius:5px;cursor:pointer;background:var(--or);color:white">💾</button>
+        <button onclick="exportPDF()" title="Eksportuj wycenę do PDF" style="height:27px;width:32px;font-size:14px;border:none;border-radius:5px;cursor:pointer;background:#c0392b;color:white">📄</button>
+      </div>
+      <div id="save-feedback" style="font-size:10px;color:var(--green);margin-top:4px;display:none">✓ Zapisano!</div>
+        <div style="margin-top:6px">
+          <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--color-text-secondary,#6b6b6b);margin-bottom:2px"><span>Storage</span><span id="storage-bar-label">—</span></div>
+          <div style="height:4px;background:var(--color-border-tertiary,#e0dedd);border-radius:2px;overflow:hidden"><div id="storage-bar" style="height:100%;width:0%;border-radius:2px;background:var(--green);transition:width .4s"></div></div>
+        </div>
+    </div>
+    <button class="btn" onclick="am()">+ Dodaj produkt</button>
+    <button class="btn g" onclick="openSupabaseModal()" title="Real-time sync między urządzeniami">🔥 Firebase Sync</button>
+
+  </div>
+
+  <div class="main">
+    <div class="tabs">
+      <div class="tab on" onclick="st2('d')">Pulpit</div>
+      <div class="tab" onclick="st2('p')">Produkty</div>
+      <div class="tab" onclick="st2('k')">🖼️ Karty</div>
+      <div class="tab" onclick="st2('v')">Wizualizacja</div>
+      <div class="tab" onclick="st2('x')">Szczegóły</div>
+      <button onclick="toggleMobSide()" style="display:none;margin-left:auto;margin-right:6px;align-self:center;height:26px;padding:0 10px;font-size:10px;border:none;border-radius:13px;cursor:pointer;background:var(--or);color:white;white-space:nowrap;font-weight:500" id="mob-open-btn">⚙️ Ustaw.</button>
+    </div>
+    <div class="tb">
+      <div class="pg on" id="pd"><div class="hg" id="hg"></div><div id="fa" style="display:none" class="alrt"></div><div id="dt"></div></div>
+      <div class="pg" id="pp">
+        <div style="overflow-x:auto"><table class="pt"><thead><tr>
+          <th></th><th>SKU</th><th>Nazwa</th><th>Ilość</th><th>Cena¥</th>
+          <th>Ship.CN <span id="ship-th" style="color:var(--or)">(¥)</span></th>
+          <th>Kartony</th><th>CBM/kart.</th><th>Total CBM</th><th>Waga kg</th>
+          <th>HS</th><th>Cło%</th><th>Dod.</th><th>Koszt/szt.</th><th></th>
+        </tr></thead><tbody id="prb"></tbody></table></div>
+        <button class="btn g" style="margin-top:9px" onclick="am()">+ Dodaj produkt</button>
+      </div>
+      <div class="pg" id="pk" style="padding:0"><div class="cards-grid" id="cards-grid"></div></div>
+      <div class="pg" id="pv">
+        <div class="vw">
+          <div style="flex:1"><svg id="cs" viewBox="0 0 500 174" width="100%" preserveAspectRatio="xMidYMid meet" style="max-height:174px;display:block"></svg></div>
+          <div class="cl"><div class="clt">Produkty</div><div id="cli"></div></div>
+        </div>
+        <div class="cbw"><div class="cbl2">Struktura łącznego kosztu importu</div><div class="cbt" id="cbt"></div><div class="cbleg" id="cbleg"></div></div>
+      </div>
+      <div class="pg" id="px"><div id="db"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- DOLNA NAWIGACJA MOBILE — na poziomie body, zawsze widoczna -->
+<nav class="mob-nav" id="mob-nav">
+  <button class="mob-nav-btn on" id="mn-calc" onclick="mobNav('calc')">
+    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+    Kalkulator
+  </button>
+  <button class="mob-nav-btn" id="mn-import" onclick="mobNav('import')">
+    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+    Import
+  </button>
+  <button class="mob-nav-btn" id="mn-quotes" onclick="mobNav('quotes')">
+    <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+    Wyceny
+  </button>
+  <button class="mob-nav-btn" id="mn-products" onclick="mobNav('products')">
+    <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+    Produkty
+  </button>
+  <button class="mob-nav-btn" id="mn-settings" onclick="toggleMobSide()" style="position:relative">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/><path d="M12 2v2M12 20v2M2 12H4M20 12h2"/></svg>
+    <div class="mob-settings-dot" id="mob-settings-dot"></div>
+    Ustawienia
+  </button>
+</nav>
+
+<!-- IMPORT EXCEL -->
+<div class="fullview" id="vim">
+  <div style="max-width:660px">
+    <div style="font-size:13px;font-weight:600;margin-bottom:11px">Import arkusza Excel od dostawcy</div>
+    <div class="dz" onclick="document.getElementById('fi').click()">
+      <div style="font-size:24px;margin-bottom:4px">📂</div>
+      <div style="font-size:13px;font-weight:500">Wgraj plik .xlsx od dostawcy</div>
+      <div style="font-size:11px;color:var(--color-text-secondary,#6b6b6b);margin-top:3px">Dowolny układ kolumn · Auto-wykrywanie nagłówków · URL zdjęć 🖼️</div>
+    </div>
+    <input type="file" id="fi" accept=".xlsx,.xls,.csv" style="display:none" onchange="hf(event)">
+    <div id="ia"></div>
+  </div>
+</div>
+
+<!-- SYMULACJA -->
+<div class="fullview" id="vsim">
+  <div style="max-width:660px">
+    <div style="font-size:13px;font-weight:600;margin-bottom:11px">Symulacja: porównanie kontenerów</div>
+    <div id="sb"></div>
+  </div>
+</div>
+
+<!-- WYCENY -->
+<div class="fullview" id="vquotes">
+  <div style="max-width:700px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div style="font-size:14px;font-weight:700">💾 Zapisane wyceny</div>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+
+        <button onclick="compactStorage()" style="height:28px;padding:0 10px;font-size:11px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:6px;cursor:pointer;background:transparent;color:var(--color-text-secondary,#6b6b6b)" title="Usuń duplikaty i skompresuj dane">🗜 Kompaktuj</button>
+        <button onclick="clearOldQuotes(10)" style="height:28px;padding:0 10px;font-size:11px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:6px;cursor:pointer;background:transparent;color:var(--color-text-secondary,#6b6b6b)" title="Zostaw 10 najnowszych, usuń starsze">🗑 Zostaw 10</button>
+        <button onclick="clearAllStorage()" style="height:28px;padding:0 10px;font-size:11px;border:.5px solid var(--red);border-radius:6px;cursor:pointer;background:transparent;color:var(--red)">Wyczyść</button>
+        <button onclick="sv('calc')" style="height:28px;padding:0 12px;font-size:11px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:6px;cursor:pointer;background:transparent">← Kalkulator</button>
+      </div>
+    </div>
+    <div id="quotes-list"></div>
+  </div>
+</div>
+
+<!-- PRODUKTY DB -->
+<div class="fullview" id="vproducts">
+  <div class="pdb-search">
+    <input id="pdb-q" placeholder="🔍 Szukaj po nazwie lub SKU…" oninput="renderProductsDB()">
+    <button onclick="exportProductsCSV()" style="height:30px;padding:0 12px;font-size:11px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:6px;cursor:pointer;background:transparent;white-space:nowrap">⬇ Eksport CSV</button>
+  </div>
+  <div id="pdb-content"></div>
+</div>
+
+<!-- KODY HS -->
+<div class="fullview" id="vhs">
+  <div style="max-width:860px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+      <div style="font-size:14px;font-weight:700">🏷️ Baza kodów HS</div>
+      <button onclick="openTaric()" style="height:30px;padding:0 13px;font-size:11px;border-radius:6px;cursor:pointer;font-weight:500;background:#EEF3FA;color:var(--blue);border:.5px solid #c5d9f2">🔍 Szukaj w TARIC (EU)</button>
+    </div>
+    <div class="hs-form">
+      <div><label>Kod HS</label><input id="hf-code" placeholder="np. 9403.20" maxlength="12" style="width:110px"></div>
+      <div style="flex:1;min-width:140px"><label>Nazwa produktu</label><input id="hf-name" placeholder="np. Krzesło biurowe" style="width:100%"></div>
+      <div><label>Stawka cła CN 🇨🇳 %</label><input id="hf-duty" type="number" min="0" max="200" step="0.1" placeholder="np. 6.5" style="width:85px"></div>
+      <div style="flex:1;min-width:110px"><label>Notatka</label><input id="hf-note" placeholder="opcjonalnie" style="width:100%"></div>
+      <div><label>&nbsp;</label><button onclick="addHSEntry()" style="height:27px;padding:0 13px;font-size:11px;border:none;border-radius:5px;cursor:pointer;font-weight:500;background:var(--or);color:white;white-space:nowrap">+ Dodaj</button></div>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:9px;flex-wrap:wrap">
+      <input id="hs-filter" placeholder="🔍 Filtruj po kodzie HS lub nazwie…" oninput="renderHS()" style="flex:1;min-width:200px;height:30px;font-size:11px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:6px;padding:0 8px;background:var(--color-background-primary,#fff);color:var(--color-text-primary,#1a1a1a)">
+      <div style="position:relative;flex:1;min-width:200px">
+        <input id="hs-prod-search" placeholder="📦 Przypisz do produktu po SKU lub nazwie…" oninput="searchProductsForHS()" style="width:100%;height:30px;font-size:11px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:6px;padding:0 8px;background:var(--color-background-primary,#fff);color:var(--color-text-primary,#1a1a1a)">
+        <div id="hs-prod-results" style="display:none;position:absolute;top:32px;left:0;right:0;background:white;border:.5px solid var(--color-border-secondary,#ccc);border-radius:7px;box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:100;max-height:220px;overflow-y:auto"></div>
+      </div>
+    </div>
+    <div id="hs-assign-banner" style="display:none;background:#EEF3FA;border:.5px solid #c5d9f2;border-radius:7px;padding:8px 12px;margin-bottom:9px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <div style="flex:1;font-size:11px;color:#1a4a7a">
+        📦 Przypisujesz do: <strong id="hs-assign-name"></strong>
+        <span id="hs-assign-sku" style="font-family:monospace;font-size:10px;color:var(--blue);margin-left:5px"></span>
+      </div>
+      <button onclick="clearHSAssign()" style="font-size:10px;color:var(--color-text-secondary,#6b6b6b);background:transparent;border:none;cursor:pointer">✕ Anuluj</button>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="hs-tbl">
+        <thead><tr><th>Kod HS</th><th>Nazwa produktu</th><th>Stawka cła 🇨🇳</th><th>Notatka</th><th>Źródło</th><th></th></tr></thead>
+        <tbody id="hs-tbody"></tbody>
+      </table>
+    </div>
+    <div id="hs-empty" style="display:none;text-align:center;padding:32px;color:var(--color-text-secondary,#6b6b6b);font-size:12px">
+      <div style="font-size:28px;margin-bottom:8px">🏷️</div>
+      Brak kodów HS. Dodaj ręcznie powyżej lub wyszukaj w bazie TARIC.
+    </div>
+  </div>
+</div>
+
+
+
+<!-- PRODUCT DETAIL MODAL -->
+<div class="pdb-modal" id="pdb-modal">
+  <div class="pdb-detail">
+    <div class="modal-head">
+      <div>
+        <div style="font-size:13px;font-weight:600" id="pdb-modal-name">Produkt</div>
+        <div style="font-size:10px;color:var(--color-text-secondary,#6b6b6b)" id="pdb-modal-sku"></div>
+      </div>
+      <button class="modal-close" onclick="closePdbModal()">✕</button>
+    </div>
+    <div style="flex:1;overflow:auto;padding:14px 16px">
+      <div id="pdb-modal-body"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="mf-cancel" onclick="closePdbModal()">Zamknij</button>
+      <button class="mf-ok" onclick="loadProductToCalc()">📊 Wczytaj do kalkulatora</button>
+    </div>
+  </div>
+</div>
+
+<!-- SYNC CONFIG MODAL -->
+<div class="pdb-modal" id="supabase-modal">
+  <div class="pdb-detail" style="max-width:500px">
+    <div class="modal-head">
+      <div>
+        <div style="font-size:13px;font-weight:600">🔥 Sync — Firebase</div>
+        <div style="font-size:10px;color:var(--color-text-secondary,#6b6b6b)">Synchronizacja online przez Firebase Realtime Database</div>
+      </div>
+      <button class="modal-close" onclick="closeSupabaseModal()">✕</button>
+    </div>
+    <div style="padding:16px;overflow-y:auto;max-height:75vh">
+      <div id="supabase-setup-section">
+        <div style="background:#EEF3FA;border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:11px;color:#1a4a7a;line-height:1.8">
+          <strong>Jak skonfigurować Firebase (raz):</strong><br>
+          1. Wejdź do Firebase Console → utwórz projekt<br>
+          2. Dodaj aplikację Web i skopiuj konfigurację Firebase<br>
+          3. Włącz <strong>Realtime Database</strong> w trybie testowym na start<br>
+          4. Wklej poniżej dane: apiKey, authDomain, databaseURL, projectId, appId<br>
+          5. Ustaw tę samą nazwę przestrzeni roboczej na każdym komputerze
+        </div>
+        <div class="g2" style="gap:8px;margin-bottom:8px">
+          <div><div style="font-size:9px;font-weight:600;color:var(--color-text-secondary,#6b6b6b);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">apiKey</div><input id="sb-api-input" placeholder="AIza..." style="width:100%;height:32px;font-size:11px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:6px;padding:0 8px;box-sizing:border-box"></div>
+          <div><div style="font-size:9px;font-weight:600;color:var(--color-text-secondary,#6b6b6b);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">authDomain</div><input id="sb-auth-input" placeholder="projekt.firebaseapp.com" style="width:100%;height:32px;font-size:11px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:6px;padding:0 8px;box-sizing:border-box"></div>
+        </div>
+        <div style="margin-bottom:8px"><div style="font-size:9px;font-weight:600;color:var(--color-text-secondary,#6b6b6b);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">databaseURL</div><input id="sb-db-input" placeholder="https://projekt-default-rtdb.europe-west1.firebasedatabase.app" style="width:100%;height:32px;font-size:11px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:6px;padding:0 8px;box-sizing:border-box"></div>
+        <div class="g2" style="gap:8px;margin-bottom:8px">
+          <div><div style="font-size:9px;font-weight:600;color:var(--color-text-secondary,#6b6b6b);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">projectId</div><input id="sb-project-input" placeholder="projekt" style="width:100%;height:32px;font-size:11px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:6px;padding:0 8px;box-sizing:border-box"></div>
+          <div><div style="font-size:9px;font-weight:600;color:var(--color-text-secondary,#6b6b6b);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">appId</div><input id="sb-appid-input" placeholder="1:...:web:..." style="width:100%;height:32px;font-size:11px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:6px;padding:0 8px;box-sizing:border-box"></div>
+        </div>
+        <div style="margin-bottom:20px">
+          <div style="font-size:9px;font-weight:600;color:var(--color-text-secondary,#6b6b6b);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Przestrzeń robocza / firma</div>
+          <input id="sb-email-input" placeholder="np. dionizos" style="width:100%;height:32px;font-size:11px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:6px;padding:0 8px;box-sizing:border-box">
+          <div style="font-size:10px;color:var(--color-text-secondary,#6b6b6b);margin-top:4px">Ten sam identyfikator na wszystkich komputerach = wspólne dane.</div>
+        </div>
+        <button onclick="connectSupabase()" style="width:100%;height:40px;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;background:var(--or);color:white">🔥 Połącz z Firebase</button>
+        <div id="sb-connect-status" style="margin-top:10px;font-size:11px;text-align:center"></div>
+      </div>
+      <div id="supabase-connected-section" style="display:none">
+        <div style="background:#EAF3DE;border-radius:8px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px">
+          <div style="font-size:22px">📊</div>
+          <div style="flex:1">
+            <div style="font-size:12px;font-weight:500">Firebase Sync aktywny</div>
+            <div style="font-size:11px;color:var(--color-text-secondary,#6b6b6b)" id="sb-connected-email"></div>
+          </div>
+          <button onclick="disconnectSupabase()" style="height:26px;padding:0 10px;font-size:10px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:5px;cursor:pointer;background:transparent">Rozłącz</button>
+        </div>
+        <div id="sb-sync-status" style="font-size:11px;color:var(--color-text-secondary,#6b6b6b);text-align:center;margin-bottom:14px"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+          <button onclick="sbPush()" style="height:36px;border:none;border-radius:7px;cursor:pointer;font-weight:500;font-size:12px;background:var(--or);color:white">⬆ Wyślij teraz</button>
+          <button onclick="sbPull()" style="height:36px;border:.5px solid var(--or);border-radius:7px;cursor:pointer;font-weight:500;font-size:12px;background:transparent;color:var(--or)">⬇ Pobierz teraz</button>
+        </div>
+        <div style="background:var(--color-background-secondary,#f5f4f1);border-radius:7px;padding:10px 12px;font-size:10px;color:var(--color-text-secondary,#6b6b6b);line-height:1.7">
+          <strong>Auto-sync:</strong> dane wysyłane automatycznie 1s po każdej zmianie<br>
+          <strong>Realtime:</strong> zmiany z innych urządzeń od razu
+          <div id="sb-realtime-indicator" style="margin-top:6px;display:flex;align-items:center;gap:5px">
+            <div id="sb-rt-dot" style="width:8px;height:8px;border-radius:50%;background:#ccc"></div>
+            <span id="sb-rt-text">Oczekiwanie…</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TARIC MODAL -->
+<div class="modal-overlay" id="taric-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>🔍 Wyszukiwarka TARIC — oficjalna baza celna EU</h3>
+      <button class="modal-close" onclick="closeTaric()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="taric-info">
+        <strong>TARIC</strong> — oficjalna taryfa celna EU dla importu z <strong>Chin 🇨🇳</strong>. Wyszukuj po polsku lub angielsku — wyniki zawierają stawki CN (mogą być wyższe niż bazowe ze względu na cła antydumpingowe).<br>
+        <a href="https://ec.europa.eu/taxation_customs/dds2/taric/taric_consultation.jsp?Lang=pl&LangDescr=pl&Area=CN&Expand=true" target="_blank" style="color:var(--blue);font-weight:500">🇨🇳 Otwórz portal TARIC dla Chin →</a>
+      </div>
+      <div class="taric-sb">
+        <input id="taric-q" placeholder="np. furniture, shoes, electronics, clothing…" onkeydown="if(event.key==='Enter')searchTaric()">
+        <button onclick="searchTaric()">Szukaj</button>
+      </div>
+      <div id="taric-results"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="mf-cancel" onclick="closeTaric()">Anuluj</button>
+      <button class="mf-ok" id="taric-ok" onclick="confirmTaric()" disabled>Zapisz wybrany kod →</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
+<script>
+// ═══ GLOBALS ═══
+const COLS=['#E8650A','#1D9E75','#378ADD','#D4537E','#BA7517','#534AB7','#D85A30','#3B6D11','#0F6E56','#993556','#185FA5','#854F0B'];
+let splitMode='cbm', activeTab='d', ps=[];
+let shipCNisCNY=true;
+let hsDB=[];
+let taricSel=null;
+
+// ═══ HELPERS ═══
+const g=id=>document.getElementById(id);
+const gn=id=>parseFloat(g(id).value)||0;
+const cur=()=>g('cu').value;
+const rate=()=>Math.max(parseFloat(g('ra').value)||0.57,0.0001);
+const vol=()=>{const t=g('ct').value;return t==='0'?gn('cv'):(parseFloat(t)||68)};
+const getFr=()=>gn('fr');
+const getShared=()=>gn('kc')+gn('kp')+gn('kl')+gn('ki')+gn('ko');
+const getDuty=()=>gn('du');
+const getVAT=()=>gn('va');
+function escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+// ═══ VIEWS ═══
+function sv(v){
+  const map={calc:'vc',import:'vim',sim:'vsim',quotes:'vquotes',products:'vproducts',hs:'vhs'};
+  const order=['calc','import','sim','quotes','products','hs'];
+  Object.entries(map).forEach(([k,id])=>{
+    const el=g(id);if(el)el.style.display=k===v?(k==='calc'?'flex':'flex'):'none';
+  });
+  document.querySelectorAll('.tnav').forEach((b,i)=>b.classList.toggle('on',order[i]===v));
+  if(v==='sim')rsim();
+  if(v==='quotes')renderQuotes();
+  if(v==='products')renderProductsDB();
+  if(v==='hs')renderHS();
+  // Sync mobile bottom nav
+  const mobMap={calc:'mn-calc',import:'mn-import',quotes:'mn-quotes',products:'mn-products'};
+  Object.entries(mobMap).forEach(([k,id])=>{
+    const b=document.getElementById(id);
+    if(b)b.classList.toggle('on',k===v);
+  });
+  // Ustawienia nie ma osobnego widoku — odznacz
+  const ms=document.getElementById('mn-settings');
+  if(ms&&v!=='__settings')ms.classList.remove('on');
+}
+
+function st2(t){
+  activeTab=t;
+  const tabs=['d','p','k','v','x'],pages=['pd','pp','pk','pv','px'];
+  document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('on',tabs[i]===t));
+  pages.forEach((id,i)=>{const el=g(id);if(el)el.classList.toggle('on',tabs[i]===t);});
+  rc();
+}
+
+// ═══ CORE CALC ═══
+function getValueMultiplier(all){
+  const r=rate(),tp=all.reduce((s,p)=>s+(Math.max(p.qty||0,1))*(parseFloat(p.priceCNY)||0)*r,0);
+  if(tp<=0)return 1;
+  const v=vol(),f=getFr(),sh=getShared(),dr=getDuty()/100,vr=getVAT()/100;
+  const tc=all.reduce((s,p)=>s+(parseFloat(p.cbm)||0),0);
+  const tf=tc*(v>0?f/v:0);
+  const ts2=all.reduce((s,p)=>{const raw=parseFloat(p.shipCN)||0;return s+(shipCNisCNY?raw*r:raw)},0);
+  const cif=tp+ts2+tf,da=cif*dr,va=(cif+da)*vr;
+  return(tp+ts2+tf+sh+da+va)/tp;
+}
+
+function calc(p,all){
+  const q=Math.max(p.qty||0,1),pCNY=parseFloat(p.priceCNY)||0,r=rate();
+  const v=vol(),f=getFr(),sh=getShared();
+  const dr=(p.duty!==null&&p.duty!==undefined&&p.duty!==''?parseFloat(p.duty):getDuty())/100;
+  const vr=getVAT()/100,cbm=parseFloat(p.cbm)||0,ex=parseFloat(p.extraCosts)||0;
+  const rawSCN=parseFloat(p.shipCN)||0,scn=shipCNisCNY?rawSCN*r:rawSCN;
+  const fpm=v>0?f/v:0,frs=cbm*fpm,pv=q*pCNY*r;
+  if(splitMode==='value'){
+    const mult=getValueMultiplier(all),tot=pv*mult+ex;
+    const tc=all.reduce((s,p2)=>s+(parseFloat(p2.cbm)||0),0),share=tc>0?cbm/tc:0;
+    return{pv,scn,scnRaw:rawSCN,frs,shs:sh*share,da:pv*dr,va2:pv*(1+dr)*vr,ex,tot,pu:tot/q,share,fpm,mult,mode:'value'};
+  }
+  let share=0;
+  if(splitMode==='cbm'){const tc=all.reduce((s,x)=>s+(parseFloat(x.cbm)||0),0);share=tc>0?cbm/tc:0;}
+  else{const tw=all.reduce((s,x)=>s+(parseFloat(x.weight)||0),0);share=tw>0?(parseFloat(p.weight)||0)/tw:0;}
+  const shs=sh*share,cif=pv+scn+frs,da=cif*dr,va2=(cif+da)*vr,tot=cif+shs+da+va2+ex;
+  return{pv,scn,scnRaw:rawSCN,frs,shs,da,va2,ex,tot,pu:tot/q,share,fpm,mult:null,mode:splitMode};
+}
+
+// ═══ RENDER CONTROLLER ═══
+function updateCBM(i,el){
+  // Read directly by ID — safe regardless of column order
+  const boxesEl=document.getElementById('inp-boxes-'+i);
+  const boxCBMEl=document.getElementById('inp-boxcbm-'+i);
+  const boxes=parseFloat(boxesEl?boxesEl.value:0)||0;
+  const boxCBM=parseFloat(boxCBMEl?boxCBMEl.value:0)||0;
+  ps[i].boxes=boxes;
+  ps[i].boxCBM=boxCBM;
+  const cbm=(boxes>0&&boxCBM>0)?Math.round(boxes*boxCBM*1000000)/1000000:0;
+  ps[i].cbm=cbm;
+  // Update display
+  const cbmTd=document.getElementById('td-cbm-'+i);
+  if(cbmTd)cbmTd.textContent=cbm.toFixed(3);
+  // Full recalc
+  rc();
+}
+
+function rc(){
+  const c=cur();
+  g('fru').textContent=c;g('ku').textContent=c;g('cur-lbl').textContent=c;
+  g('scn-loc-lbl').textContent=c;
+  g('ship-th').textContent=shipCNisCNY?'(¥)':'('+c+')';
+  g('scn-hint').textContent=shipCNisCNY?'Przeliczane × kurs CNY':'Bez przeliczania (już w '+c+')';
+  if(splitMode==='value'&&ps.length){
+    const m=getValueMultiplier(ps),tp=ps.reduce((s,p)=>s+(Math.max(p.qty||0,1))*(parseFloat(p.priceCNY)||0)*rate(),0);
+    g('mult-val').textContent='×'+m.toFixed(4);
+    g('mult-formula').textContent=`(${(tp*m).toFixed(0)} całk. ÷ ${tp.toFixed(0)} zakup) — ¥10 → ${(10*rate()*m).toFixed(2)} ${c}`;
+  }else if(splitMode==='value'){g('mult-val').textContent='×1.0000';g('mult-formula').textContent='Dodaj produkty aby zobaczyć mnożnik';}
+  if(activeTab==='d')rd();
+  else if(activeTab==='p')rp();
+  else if(activeTab==='k')rk();
+  else if(activeTab==='v')rv();
+  else rx();
+  sbAutoTrigger(); // sync każdej zmiany — debounce 3s
+}
+
+// ═══ DASHBOARD ═══
+function rd(){
+  const c=cur(),v=vol(),tc=ps.reduce((s,p)=>s+(parseFloat(p.cbm)||0),0),pct=v>0?tc/v*100:0;
+  let ti=0;ps.forEach(p=>{ti+=calc(p,ps).tot});
+  g('hg').innerHTML=[
+    {l:'Łączne CBM',v:tc.toFixed(2)+' m³',s:v+' m³ pojemności'},
+    {l:'Zapełnienie',v:pct.toFixed(1)+'%',s:ps.length+' produktów'},
+    {l:'Fracht / m³',v:(v>0?getFr()/v:0).toFixed(0)+' '+c,s:'przy bieżącym frachcie'},
+    {l:'Koszt importu',v:ti.toFixed(0)+' '+c,s:'suma wszystkich kosztów',ac:1},
+  ].map(h=>`<div class="hc${h.ac?' ac':''}"><div class="hl">${h.l}</div><div class="hv">${h.v}</div><div class="hs-kpi">${h.s}</div></div>`).join('');
+  const al=g('fa');
+  if(pct>100){al.style.display='block';al.textContent=`Uwaga! Przekroczono pojemność o ${(tc-v).toFixed(2)} m³.`}
+  else if(pct>88){al.style.display='block';al.textContent=`Kontener zapełniony w ${pct.toFixed(1)}% — pozostało ${(v-tc).toFixed(2)} m³.`}
+  else al.style.display='none';
+  if(!ps.length){g('dt').innerHTML='<div style="text-align:center;padding:28px;color:var(--color-text-secondary,#6b6b6b);font-size:12px">Brak produktów. Dodaj ręcznie lub wgraj Excel.</div>';return}
+  const mb=splitMode==='value'?`<span style="background:var(--orl);color:var(--or);font-size:9px;padding:1px 6px;border-radius:5px;margin-left:4px">×${getValueMultiplier(ps).toFixed(3)}</span>`:'';
+  g('dt').innerHTML=`<div style="overflow-x:auto"><table class="pt"><thead><tr><th></th><th>SKU</th><th>Produkt</th><th>Ilość</th><th>CBM</th><th>Zakup ${c}</th><th>Ship.CN</th><th>Fracht</th><th>Cło</th><th>VAT</th><th>Koszt/szt.${mb}</th></tr></thead><tbody>${ps.map((p,i)=>{
+    const r=calc(p,ps),img=p.imageUrl?`<img src="${escHtml(p.imageUrl)}" style="width:22px;height:22px;object-fit:cover;border-radius:3px;vertical-align:middle;margin-right:3px" onerror="this.style.display='none'">`:'';
+    return`<tr><td style="white-space:nowrap">${img}<span class="cc" style="background:${COLS[i%COLS.length]}"></span></td>
+    <td><input value="${escHtml(p.sku||'')}" style="width:60px;font-family:monospace;font-size:10px;height:21px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:3px;padding:0 4px;background:var(--color-background-primary,#fff)" placeholder="SKU" onchange="ps[${i}].sku=this.value.trim()" title="SKU — edytuj"></td>
+    <td><input value="${escHtml(p.name||'P'+(i+1))}" style="width:110px;height:21px;font-size:10px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:3px;padding:0 4px;background:var(--color-background-primary,#fff)" onchange="ps[${i}].name=this.value;rc()" title="Nazwa — edytuj"></td>
+    <td>${p.qty}</td><td>${(parseFloat(p.cbm)||0).toFixed(3)}</td><td>${r.pv.toFixed(0)}</td><td>${r.scn.toFixed(0)}${shipCNisCNY?`<span style="font-size:9px;color:#999"> (${r.scnRaw.toFixed(0)}¥)</span>`:''}</td><td>${r.frs.toFixed(0)}</td><td>${r.da.toFixed(0)}</td><td>${r.va2.toFixed(0)}</td><td class="chi">${r.pu.toFixed(2)} ${c}</td></tr>`;
+  }).join('')}</tbody></table></div>`;
+}
+
+// ═══ PRODUCTS ═══
+function rp(){
+  const c=cur(),tb=g('prb');
+  if(!ps.length){tb.innerHTML='<tr><td colspan="15" style="text-align:center;padding:18px;color:var(--color-text-secondary,#6b6b6b)">Brak produktów</td></tr>';return}
+  tb.innerHTML=ps.map((p,i)=>{const r=calc(p,ps);return`<tr>
+    <td><span class="cc" style="background:${COLS[i%COLS.length]}"></span></td>
+    <td><input value="${escHtml(p.sku||'')}" style="width:65px;font-family:monospace;font-size:10px;height:21px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:3px;padding:0 4px" placeholder="SKU" onchange="ps[${i}].sku=this.value.trim()" title="SKU — kliknij aby edytować"></td>
+    <td><input value="${escHtml(p.name||'')}" style="width:105px;height:21px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:3px;padding:0 4px;font-size:10px" onchange="ps[${i}].name=this.value;rc()" title="Nazwa — kliknij aby edytować"></td>
+    <td><input type="number" value="${p.qty}" style="width:50px" onchange="ps[${i}].qty=+this.value;rc()"></td>
+    <td><input type="number" value="${p.priceCNY||0}" step="0.01" style="width:50px" onchange="ps[${i}].priceCNY=+this.value;rc()"></td>
+    <td><input type="number" value="${p.shipCN||0}" style="width:50px" onchange="ps[${i}].shipCN=+this.value;rc()"></td>
+    <td><input type="number" id="inp-boxes-${i}" value="${p.boxes||0}" style="width:38px" onchange="ps[${i}].boxes=+this.value;updateCBM(${i},this)"></td>
+    <td><input type="number" id="inp-boxcbm-${i}" value="${p.boxCBM||0}" step="0.0001" style="width:55px" onchange="ps[${i}].boxCBM=+this.value;updateCBM(${i},this)"></td>
+    <td style="font-weight:500" id="td-cbm-${i}">${(parseFloat(p.cbm)||0).toFixed(3)}</td>
+    <td><input type="number" value="${p.weight||0}" style="width:50px" onchange="ps[${i}].weight=+this.value;rc()"></td>
+    <td><input value="${escHtml(p.hs||'')}" style="width:58px" onchange="ps[${i}].hs=this.value" title="Kod HS"></td>
+    <td><input type="number" value="${p.duty!==null&&p.duty!==undefined?p.duty:''}" placeholder="glob." style="width:44px" onchange="ps[${i}].duty=this.value===''?null:+this.value;rc()"></td>
+    <td><input type="number" value="${p.extraCosts||0}" style="width:50px" onchange="ps[${i}].extraCosts=+this.value;rc()"></td>
+    <td class="chi">${r.pu.toFixed(2)} ${c}</td>
+    <td><button class="db" onclick="removeCalcProduct(${i})">✕</button></td>
+  </tr>`}).join('');
+}
+
+// ═══ CARDS (photos) ═══
+function rk(){
+  const c=cur(),grid=g('cards-grid');
+  if(!ps.length){grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--color-text-secondary,#6b6b6b);font-size:12px"><div style="font-size:28px;margin-bottom:8px">📦</div>Brak produktów. Dodaj ręcznie lub wgraj Excel<br>z kolumną <strong>Image URL</strong> / <strong>Photo</strong>.</div>';return}
+  grid.innerHTML=ps.map((p,i)=>{
+    const r=calc(p,ps);
+    const dutyLabel=p.duty!=null?p.duty+'%':getDuty()+'%*';
+    const imgHtml=p.imageUrl
+      ?`<div class="pcard-img"><img src="${escHtml(p.imageUrl)}" alt="${escHtml(p.name||'')}" loading="lazy" onerror="this.parentElement.innerHTML='<span style=font-size:32px>📦</span>'"></div>`
+      :`<div class="pcard-img">📦</div>`;
+    return`<div class="pcard">${imgHtml}<div class="pcard-body">
+      <div class="pcard-name" title="${escHtml(p.name||'')}">${escHtml(p.name||'Produkt '+(i+1))}</div>
+      <div class="pcard-meta">${p.qty} szt. &middot; ${(parseFloat(p.cbm)||0).toFixed(3)} m³ &middot; cło ${dutyLabel}</div>
+      <div class="pcard-price">${r.pu.toFixed(2)} ${c}/szt.</div>
+      <div class="pcard-sub">Łącznie: ${r.tot.toFixed(0)} ${c}</div>
+      ${p.hs?`<div class="pcard-hs">${escHtml(p.hs)}</div>`:''}
+    </div></div>`;
+  }).join('');
+}
+
+// ═══ VISUALIZATION ═══
+function rv(){dsv();rl();rcb()}
+function dsv(){
+  const svg=g('cs'),v=vol(),tc=ps.reduce((s,p)=>s+(parseFloat(p.cbm)||0),0);
+  const FL={x:32,y:40},FR={x:340,y:40},BL={x:32,y:148},BR={x:340,y:148},TL={x:140,y:11},TR={x:448,y:11},RB={x:448,y:119};
+  const FW=FR.x-FL.x,FH=BL.y-FL.y;
+  let o=`<polygon points="${FL.x},${FL.y} ${TL.x},${TL.y} ${TR.x},${TR.y} ${FR.x},${FR.y}" fill="#e4e3e0" stroke="#bbb" stroke-width="0.8"/>`;
+  o+=`<polygon points="${FR.x},${FR.y} ${TR.x},${TR.y} ${RB.x},${RB.y} ${BR.x},${BR.y}" fill="#d2d1ce" stroke="#bbb" stroke-width="0.8"/>`;
+  o+=`<rect x="${FL.x}" y="${FL.y}" width="${FW}" height="${FH}" fill="#efeeec" stroke="#bbb" stroke-width="0.8"/>`;
+  for(let i=1;i<10;i++){const x=FL.x+FW*i/10;o+=`<line x1="${x}" y1="${FL.y}" x2="${x}" y2="${BL.y}" stroke="#dfded9" stroke-width="0.6"/>`}
+  for(let i=1;i<4;i++){const y=FL.y+FH*i/4;o+=`<line x1="${FL.x}" y1="${y}" x2="${FR.x}" y2="${y}" stroke="#e6e5e2" stroke-width="0.5"/>`}
+  const frat=Math.min(v>0?tc/v:0,1.05),fw=FW*Math.min(frat,1),skX=TL.x-FL.x,skY=TL.y-FL.y;let cx=FL.x;
+  ps.forEach((p,i)=>{
+    const cbm=parseFloat(p.cbm)||0;if(cbm<=0)return;
+    const frac=tc>0?cbm/tc:0,bw=fw*frac;if(bw<0.5)return;
+    const col=COLS[i%COLS.length],r0=(cx-FL.x)/FW,r1=(cx+bw-FL.x)/FW;
+    o+=`<rect x="${cx.toFixed(1)}" y="${FL.y+2}" width="${Math.max(bw-0.5,0).toFixed(1)}" height="${FH-4}" fill="${col}" opacity="0.82" rx="1"/>`;
+    o+=`<polygon points="${cx.toFixed(1)},${FL.y+2} ${(FL.x+skX*r0).toFixed(1)},${(FL.y+skY*r0+2).toFixed(1)} ${(FL.x+skX*r1).toFixed(1)},${(FL.y+skY*r1+2).toFixed(1)} ${(cx+bw).toFixed(1)},${FL.y+2}" fill="${col}" opacity="0.38"/>`;
+    if(bw>20){const nm=(p.name||'P'+(i+1)).substring(0,Math.floor(bw/7.5));o+=`<text x="${(cx+bw/2).toFixed(1)}" y="${(FL.y+FH/2).toFixed(1)}" text-anchor="middle" dominant-baseline="middle" font-size="9" fill="white" font-family="sans-serif" font-weight="500">${nm}</text>`}
+    cx+=bw;
+  });
+  o+=`<rect x="${FL.x}" y="${FL.y}" width="${FW}" height="${FH}" fill="none" stroke="#999" stroke-width="1.4"/>`;
+  o+=`<polygon points="${FL.x},${FL.y} ${TL.x},${TL.y} ${TR.x},${TR.y} ${FR.x},${FR.y}" fill="none" stroke="#aaa" stroke-width="1"/>`;
+  o+=`<polygon points="${FR.x},${FR.y} ${TR.x},${TR.y} ${RB.x},${RB.y} ${BR.x},${BR.y}" fill="none" stroke="#999" stroke-width="1.1"/>`;
+  o+=`<line x1="${FL.x}" y1="${FL.y}" x2="${FL.x}" y2="${BL.y}" stroke="#888" stroke-width="2"/>`;
+  o+=`<line x1="${FL.x}" y1="${BL.y}" x2="${BR.x}" y2="${BL.y}" stroke="#aaa" stroke-width="1.3"/>`;
+  const bx=FR.x+13,by=FL.y,bh=FH,fh2=bh*Math.min(frat,1);
+  o+=`<rect x="${bx}" y="${by}" width="12" height="${bh}" fill="#e4e3e0" rx="2"/>`;
+  if(fh2>0.5)o+=`<rect x="${bx}" y="${(by+bh-fh2).toFixed(1)}" width="12" height="${fh2.toFixed(1)}" fill="${frat>1?'#E24B4A':COLS[0]}" rx="2"/>`;
+  o+=`<text x="${bx+6}" y="${by-5}" text-anchor="middle" font-size="9" fill="${frat>1?'#E24B4A':'#888'}" font-family="sans-serif">${(Math.min(frat,1)*100).toFixed(0)}%</text>`;
+  if(!ps.length)o+=`<text x="${(FL.x+FR.x)/2}" y="${FL.y+FH/2}" text-anchor="middle" dominant-baseline="middle" font-size="12" fill="#ccc" font-family="sans-serif">Dodaj produkty lub wgraj Excel</text>`;
+  svg.innerHTML=o;
+}
+function rl(){
+  const c=cur(),tc=ps.reduce((s,p)=>s+(parseFloat(p.cbm)||0),0);
+  if(!ps.length){g('cli').innerHTML='<div style="font-size:11px;color:var(--color-text-secondary,#6b6b6b)">Brak produktów</div>';return}
+  g('cli').innerHTML=ps.map((p,i)=>{const cbm=parseFloat(p.cbm)||0,pct=tc>0?cbm/tc*100:0,r=calc(p,ps);return`<div class="cli"><div class="cld" style="background:${COLS[i%COLS.length]}"></div><div class="cln" title="${escHtml(p.name)}">${escHtml(p.name||'P'+(i+1))}</div><div class="clp">${pct.toFixed(0)}%</div></div><div class="clb"><div class="clbf" style="width:${pct.toFixed(1)}%;background:${COLS[i%COLS.length]}"></div></div><div style="font-size:10px;color:var(--color-text-secondary,#6b6b6b);margin-bottom:4px">${cbm.toFixed(3)} m³ · <span style="color:var(--or);font-weight:500">${r.pu.toFixed(2)} ${c}/szt.</span></div>`}).join('');
+}
+function rcb(){
+  const c=cur();let sP=0,sFr=0,sSh=0,sD=0,sV=0,sE=0,sSCN=0;
+  ps.forEach(p=>{const r=calc(p,ps);sP+=r.pv;sFr+=r.frs;sSh+=r.shs;sD+=r.da;sV+=r.va2;sE+=r.ex;sSCN+=r.scn});
+  const tot=sP+sFr+sSh+sD+sV+sE+sSCN;
+  if(tot<=0){g('cbt').innerHTML='';g('cbleg').innerHTML='';return}
+  const segs=[{l:'Towar',v:sP,c:'#E8650A'},{l:'Ship.CN',v:sSCN,c:'#BA7517'},{l:'Fracht',v:sFr,c:'#1D9E75'},{l:'Wspólne',v:sSh,c:'#888780'},{l:'Cło',v:sD,c:'#378ADD'},{l:'VAT',v:sV,c:'#D4537E'},{l:'Dod.',v:sE,c:'#534AB7'}];
+  g('cbt').innerHTML=segs.filter(s=>s.v>0).map(s=>`<div class="cbs" style="width:${(s.v/tot*100).toFixed(1)}%;background:${s.c}"></div>`).join('');
+  g('cbleg').innerHTML=segs.filter(s=>s.v>0).map(s=>`<div class="cbli"><div class="cbld" style="background:${s.c}"></div>${s.l} ${(s.v/tot*100).toFixed(0)}% (${s.v.toFixed(0)} ${c})</div>`).join('');
+}
+
+// ═══ DETAILS ═══
+function rx(){
+  const c=cur(),el=g('db');
+  if(!ps.length){el.innerHTML='<div style="color:var(--color-text-secondary,#6b6b6b);font-size:12px;padding:16px 0">Brak produktów.</div>';return}
+  const isVal=splitMode==='value',mult=isVal?getValueMultiplier(ps):null;
+  el.innerHTML=ps.map((p,i)=>{
+    const r=calc(p,ps),q=Math.max(p.qty||0,1),cbm=parseFloat(p.cbm)||0;
+    const scnL=shipCNisCNY?`Transport lokalny CN (${r.scnRaw.toFixed(0)}¥ × ${rate()} = ${r.scn.toFixed(2)} ${c})`:`Transport lokalny CN (${r.scn.toFixed(2)} ${c})`;
+    const rows=isVal?[
+      ['Cena zakupu / szt. (CNY→'+c+')',(((parseFloat(p.priceCNY)||0)*rate())).toFixed(3),(((parseFloat(p.priceCNY)||0)*rate())).toFixed(3)],
+      ['× Mnożnik kosztowy','×'+mult.toFixed(4),''],
+      ['= Koszt z narzutem',((parseFloat(p.priceCNY)||0)*rate()*mult).toFixed(3),((parseFloat(p.priceCNY)||0)*rate()*mult).toFixed(3)],
+      ['Dodatkowe',r.ex.toFixed(2),(r.ex/q).toFixed(3)],
+    ]:[
+      ['Wartość zakupu (CNY→'+c+')',r.pv.toFixed(2),(r.pv/q).toFixed(3)],
+      [scnL,r.scn.toFixed(2),(r.scn/q).toFixed(3)],
+      [`Fracht (${cbm.toFixed(3)}m³ × ${r.fpm.toFixed(2)} ${c}/m³)`,r.frs.toFixed(2),(r.frs/q).toFixed(3)],
+      [`Koszty wspólne (udział ${(r.share*100).toFixed(1)}%)`,r.shs.toFixed(2),(r.shs/q).toFixed(3)],
+      ['Cło',r.da.toFixed(2),(r.da/q).toFixed(3)],
+      ['VAT',r.va2.toFixed(2),(r.va2/q).toFixed(3)],
+      ['Dodatkowe',r.ex.toFixed(2),(r.ex/q).toFixed(3)],
+    ];
+    const imgT=p.imageUrl?`<img src="${escHtml(p.imageUrl)}" style="width:30px;height:30px;object-fit:cover;border-radius:4px;border:.5px solid #e0dedd;flex-shrink:0" onerror="this.style.display='none'">`:'';
+    return`<div class="dc"><div class="dh">${imgT}<span class="cc" style="background:${COLS[i%COLS.length]}"></span><span style="font-weight:500">${escHtml(p.name||'P'+(i+1))}</span><span style="font-size:10px;color:var(--color-text-secondary,#6b6b6b)">${q} szt. · ${cbm.toFixed(3)} m³</span>${p.hs?`<span class="pcard-hs">${escHtml(p.hs)}</span>`:''}<span style="margin-left:auto;color:var(--or);font-weight:500;font-size:15px">${r.pu.toFixed(2)} ${c}/szt.</span></div>
+    <table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr><th style="padding:5px 11px;text-align:left;font-size:9px;color:var(--color-text-secondary,#6b6b6b);background:var(--color-background-secondary,#f5f4f1)">Składnik</th><th style="padding:5px 11px;text-align:right;font-size:9px;color:var(--color-text-secondary,#6b6b6b);background:var(--color-background-secondary,#f5f4f1)">Łącznie ${c}</th><th style="padding:5px 11px;text-align:right;font-size:9px;color:var(--color-text-secondary,#6b6b6b);background:var(--color-background-secondary,#f5f4f1)">Na sztukę</th></tr></thead><tbody>
+    ${rows.map(([l,t,u])=>`<tr><td style="padding:5px 11px;border-top:.5px solid var(--color-border-tertiary,#e0dedd)">${l}</td><td style="padding:5px 11px;border-top:.5px solid var(--color-border-tertiary,#e0dedd);text-align:right">${t}</td><td style="padding:5px 11px;border-top:.5px solid var(--color-border-tertiary,#e0dedd);text-align:right;font-weight:500">${u}</td></tr>`).join('')}
+    <tr style="background:var(--orl)"><td style="padding:6px 11px;font-weight:500">RAZEM</td><td style="padding:6px 11px;text-align:right;font-weight:500;color:var(--or)">${r.tot.toFixed(2)}</td><td style="padding:6px 11px;text-align:right;font-weight:500;color:var(--or)">${r.pu.toFixed(3)}</td></tr>
+    </tbody></table></div>`;
+  }).join('');
+}
+
+// ═══ SIMULATION ═══
+function rsim(){
+  const c=cur(),f=getFr(),sh=getShared();
+  const conts=[{l:"20' GP",v:33},{l:"40' GP",v:60},{l:"40' HQ",v:68}];
+  const tc=ps.reduce((s,p)=>s+(parseFloat(p.cbm)||0),0);
+  const sp=ps.length?ps:[{name:'Przykład',qty:100,priceCNY:10,cbm:0.5,weight:10,shipCN:0,duty:null,extraCosts:0}];
+  g('sb').innerHTML='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:14px">'+
+    conts.map(cn=>{const pct=cn.v>0?tc/cn.v*100:0,fpm=cn.v>0?f/cn.v:0,col=pct>100?'#E24B4A':pct>85?'#BA7517':'#1D9E75';
+    return`<div style="background:var(--color-background-primary,#fff);border:.5px solid var(--color-border-tertiary,#e0dedd);border-radius:8px;padding:12px"><div style="font-weight:500;margin-bottom:4px">${cn.l}</div><div style="font-size:11px;color:var(--color-text-secondary,#6b6b6b)">Pojemność: ${cn.v} m³</div><div style="font-size:11px;color:var(--color-text-secondary,#6b6b6b);margin-bottom:7px">Fracht/m³: ${fpm.toFixed(0)} ${c}</div><div style="font-size:22px;font-weight:500;color:${col};margin-bottom:3px">${pct.toFixed(1)}%</div>${pct>100?'<span style="background:#FCEBEB;color:#A32D2D;font-size:9px;padding:2px 7px;border-radius:7px">Nie mieści się</span>':pct>85?'<span style="background:#FAEEDA;color:#854F0B;font-size:9px;padding:2px 7px;border-radius:7px">Prawie pełny</span>':'<span style="background:#EAF3DE;color:#3B6D11;font-size:9px;padding:2px 7px;border-radius:7px">OK</span>'}</div>`}).join('')+'</div>'+
+    '<div style="overflow-x:auto"><table class="pt"><thead><tr><th>Produkt</th>'+conts.map(cn=>`<th>${cn.l}</th>`).join('')+'</tr></thead><tbody>'+
+    sp.map((p,i)=>{
+      const cells=conts.map(cn=>{
+        const r2=rate(),fpm2=cn.v>0?f/cn.v:0,cbm=parseFloat(p.cbm)||0,frs=cbm*fpm2;
+        const q=Math.max(p.qty||0,1),pc=parseFloat(p.priceCNY)||0;
+        const dr=(p.duty!==null&&p.duty!==undefined?parseFloat(p.duty):getDuty())/100,vr=getVAT()/100;
+        const pv=q*pc*r2,scn=shipCNisCNY?(parseFloat(p.shipCN)||0)*r2:(parseFloat(p.shipCN)||0);
+        const tc2=sp.reduce((s,x)=>s+(parseFloat(x.cbm)||0),0),share=tc2>0?cbm/tc2:0;
+        const cif=pv+scn+frs,da=cif*dr,va2=(cif+da)*vr;
+        return`<td class="chi">${((pv+scn+frs+sh*share+da+va2+(parseFloat(p.extraCosts)||0))/q).toFixed(2)} ${c}</td>`;
+      }).join('');
+      return`<tr><td><span class="cc" style="background:${COLS[i%COLS.length]}"></span>${escHtml(p.name||'P'+(i+1))}</td>${cells}</tr>`;
+    }).join('')+'</tbody></table></div>';
+}
+
+// ═══ SIDE PANEL ═══
+function cc(){g('cvr').style.display=g('ct').value==='0'?'block':'none';rc()}
+function setShipCur(m){
+  shipCNisCNY=(m==='CNY');
+  g('scn-cny').classList.toggle('on',shipCNisCNY);
+  g('scn-loc').classList.toggle('on',!shipCNisCNY);
+  g('scn-hint').textContent=shipCNisCNY?'Przeliczane × kurs CNY':'Bez przeliczania (już w '+cur()+')';
+  g('ship-th').textContent=shipCNisCNY?'(¥)':'('+cur()+')';rc();
+}
+function ss(m){
+  splitMode=m;
+  document.querySelectorAll('.sp').forEach((b,i)=>b.classList.toggle('on',['cbm','weight','value'][i]===m));
+  g('mode-info').textContent={cbm:'Koszty wspólne przypisane proporcjonalnie do m³ każdego produktu.',weight:'Koszty wspólne przypisane proporcjonalnie do wagi każdego produktu.',value:'Mnożnik kosztowy: całkowity koszt importu ÷ wartość zakupu.\nKażdy produkt drożeje proporcjonalnie do ceny zakupu.'}[m];
+  g('mult-box').style.display=m==='value'?'block':'none';rc();
+}
+function am(){ps.push({name:'Nowy produkt',sku:'',qty:100,priceCNY:1,shipCN:0,cbm:0.1,boxCBM:0.1,boxes:1,weight:10,hs:'',duty:null,extraCosts:0,imageUrl:'',_id:_newId?_newId('calc'):String(Date.now())});st2('p');rc();sbAutoTrigger();}
+function removeCalcProduct(i){const p=ps[i];ps.splice(i,1);rc();if(typeof fbRemoveCalcProduct==='function')fbRemoveCalcProduct(p);}
+
+
+// ═══ EMBEDDED IMAGE EXTRACTOR ═══
+async function extractEmbeddedImages(arrayBuf, imgMap) {
+  try {
+    const bytes = new Uint8Array(arrayBuf);
+
+    // --- Strategy 1: use XLSX library's internal zip (fflate) ---
+    try {
+      // xlsx.full.min.js bundles fflate. We can access files via XLSX.CFB or internal zip
+      // Actually XLSX exposes zip via: XLSX.read(data, {type:'array'}) stores sheets but not images
+      // However the raw zip is accessible if we use the raw bytes directly
+      await extractViaRawZip(bytes, imgMap);
+      if(Object.keys(imgMap).length > 0) return; // success
+    } catch(e1) {
+      console.warn('Strategy 1 failed:', e1);
+    }
+  } catch(ex) {
+    console.warn('Embedded image extraction error:', ex);
+  }
+}
+
+async function extractViaRawZip(bytes, imgMap) {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+
+  // Find End of Central Directory (search from end)
+  let eocdPos = -1;
+  for (let i = bytes.length - 22; i >= Math.max(0, bytes.length - 65558); i--) {
+    if (view.getUint32(i, true) === 0x06054B50) { eocdPos = i; break; }
+  }
+  if (eocdPos < 0) throw new Error('No EOCD found');
+
+  const cdOffset = view.getUint32(eocdPos + 16, true);
+  const cdSize   = view.getUint32(eocdPos + 12, true);
+
+  // Parse all central directory entries
+  const entries = {};
+  let pos = cdOffset;
+  while (pos < cdOffset + cdSize && pos < bytes.length - 4) {
+    if (view.getUint32(pos, true) !== 0x02014B50) break;
+    const compMethod = view.getUint16(pos + 10, true);
+    const compSize   = view.getUint32(pos + 20, true);
+    const uncompSize = view.getUint32(pos + 24, true);
+    const nameLen    = view.getUint16(pos + 28, true);
+    const extraLen   = view.getUint16(pos + 30, true);
+    const commentLen = view.getUint16(pos + 32, true);
+    const localOff   = view.getUint32(pos + 42, true);
+    const name = new TextDecoder('utf-8').decode(bytes.subarray(pos + 46, pos + 46 + nameLen));
+    pos += 46 + nameLen + extraLen + commentLen;
+
+    const needed = name === 'xl/drawings/drawing1.xml'
+                || name === 'xl/drawings/_rels/drawing1.xml.rels'
+                || name.startsWith('xl/media/');
+    if (!needed) continue;
+    entries[name] = { compMethod, compSize, uncompSize, localOff };
+  }
+
+  // Helper: decompress one entry
+  async function getEntry(name) {
+    const e = entries[name];
+    if (!e) return null;
+    const lhNameLen  = view.getUint16(e.localOff + 26, true);
+    const lhExtraLen = view.getUint16(e.localOff + 28, true);
+    const dataStart  = e.localOff + 30 + lhNameLen + lhExtraLen;
+    const raw = bytes.subarray(dataStart, dataStart + e.compSize);
+    if (e.compMethod === 0) return raw; // stored
+    // deflate-raw
+    const ds = new DecompressionStream('deflate-raw');
+    const w = ds.writable.getWriter();
+    const r = ds.readable.getReader();
+    w.write(raw.slice()); w.close();
+    const chunks = []; let total = 0;
+    while (true) {
+      const { done, value } = await r.read();
+      if (done) break;
+      chunks.push(value); total += value.length;
+    }
+    const out = new Uint8Array(total); let off2 = 0;
+    for (const c of chunks) { out.set(c, off2); off2 += c.length; }
+    return out;
+  }
+
+  // Read rels XML: rId -> media filename
+  const relsBytes = await getEntry('xl/drawings/_rels/drawing1.xml.rels');
+  if (!relsBytes) return;
+  const relsXml = new TextDecoder().decode(relsBytes);
+  const rIdToFile = {};
+  for (const m of relsXml.matchAll(/Id="([^"]+)"[^>]*Target="([^"]+)"/g)) {
+    rIdToFile[m[1]] = 'xl/media/' + m[2].split('/').pop();
+  }
+
+  // Read drawing XML: anchor row -> rId -> image file
+  const drawBytes = await getEntry('xl/drawings/drawing1.xml');
+  if (!drawBytes) return;
+  const drawXml = new TextDecoder().decode(drawBytes);
+
+  // Match each twoCellAnchor block
+  for (const am of drawXml.matchAll(/<xdr:twoCellAnchor[\s\S]*?<\/xdr:twoCellAnchor>/g)) {
+    const anchor = am[0];
+    const rowM   = anchor.match(/<xdr:from>[\s\S]*?<xdr:row>(\d+)<\/xdr:row>/);
+    const embedM = anchor.match(/r:embed="([^"]+)"/);
+    if (!rowM || !embedM) continue;
+    const row0   = parseInt(rowM[1]);
+    if (imgMap[row0]) continue; // already have one for this row
+    const imgFile = rIdToFile[embedM[1]];
+    if (!imgFile) continue;
+    const imgBytes = await getEntry(imgFile);
+    if (!imgBytes) continue;
+    const ext  = imgFile.split('.').pop().toLowerCase();
+    const mime = ext === 'png' ? 'image/png' : ext === 'gif' ? 'image/gif' : 'image/jpeg';
+    // Uint8Array -> base64
+    let bin = '';
+    for (let i = 0; i < imgBytes.length; i += 8192) {
+      bin += String.fromCharCode(...imgBytes.subarray(i, Math.min(i + 8192, imgBytes.length)));
+    }
+    imgMap[row0] = 'data:' + mime + ';base64,' + btoa(bin);
+  }
+}
+
+// ═══ EXCEL IMPORT ═══
+async function hf(e){
+  const file=e.target.files[0];if(!file)return;
+  const area=g('ia');area.innerHTML='<div style="color:var(--color-text-secondary,#6b6b6b);font-size:12px;padding:7px 0">Wczytywanie… 🖼️</div>';
+  
+  const arrayBuf = await file.arrayBuffer();
+  window.__IMGMAP = {};
+  await extractEmbeddedImages(arrayBuf, window.__IMGMAP);
+  const _nImgs = Object.keys(window.__IMGMAP).length;
+  console.log('Embedded images found:', _nImgs);
+  window.__NIMGS = _nImgs;
+  
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const wb=XLSX.read(new Uint8Array(ev.target.result),{type:'array',cellFormula:false,raw:true});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const allRows=XLSX.utils.sheet_to_json(ws,{header:1,defval:null,raw:false,blankrows:true});
+      let hRow=-1;
+      for(let i=0;i<Math.min(10,allRows.length);i++){if(allRows[i].filter(c=>c!==null&&c!==undefined&&String(c).trim().length>1).length>=3){hRow=i;break}}
+      if(hRow<0){area.innerHTML='<div style="color:#E24B4A;font-size:12px">Nie znaleziono nagłówków.</div>';return}
+      const hdrs=allRows[hRow].map((c,idx)=>({orig:String(c===null?'':c).trim(),idx})).filter(h=>h.orig.length>0);
+      const FIELDS=[
+        {key:'name',    hints:['item name','name','nazwa','produkt','product name','product']},
+        {key:'sku',     hints:['sku','item no','item no.','item number','kod produktu','numer produktu','item code','product code','model','no.']},
+        {key:'qty',     hints:['suggested qty','suggested quantity','suggested','qty','quantity','ilość','ilosc']},
+        {key:'priceCNY',hints:['price','unit price','cena','unit cost']},
+        {key:'shipCN',  hints:['shipping inside china','shipping inside','shipping china','ship cn','transport cn']},
+        {key:'boxes',   hints:['box/qty','boxes','box qty','box/qty','cartons']},
+        {key:'pcsBox',  hints:['pcs/box','pcs per box','pieces per box']},
+        {key:'boxCBM',  hints:['box cbm','cbm/box','volume per box']},
+        {key:'cbm',     hints:['total cbm','total volume','cbm total']},
+        {key:'weight',  hints:['total weight','total wt','waga całkowita','weight','waga','unit weight','kg/pc']},
+        {key:'hs',      hints:['hs code','hs','tariff','hs/tariff']},
+        {key:'imageUrl',hints:['real product picture','image url','image link','photo url','zdjecie','zdjęcie','foto','img','item picture']},
+      ];
+      const usedCols=new Set();
+      function am3(hints){
+        // Pass 1: exact match — pick best (longest hint that matches)
+        let best={idx:-1,score:0};
+        for(const h of hdrs){
+          if(usedCols.has(h.idx))continue;
+          const hn=h.orig.toLowerCase().trim();
+          for(const hi of hints){
+            if(hn===hi&&hi.length>best.score){best={idx:h.idx,score:hi.length};}
+          }
+        }
+        if(best.idx>=0){usedCols.add(best.idx);return best.idx;}
+        // Pass 2: starts-with — pick best
+        best={idx:-1,score:0};
+        for(const h of hdrs){
+          if(usedCols.has(h.idx))continue;
+          const hn=h.orig.toLowerCase().trim();
+          for(const hi of hints){
+            if((hi.startsWith(hn)||hn.startsWith(hi))&&hi.length>best.score){best={idx:h.idx,score:hi.length};}
+          }
+        }
+        if(best.idx>=0){usedCols.add(best.idx);return best.idx;}
+        // Pass 3: contains
+        best={idx:-1,score:0};
+        for(const h of hdrs){
+          if(usedCols.has(h.idx))continue;
+          const hn=h.orig.toLowerCase().trim();
+          for(const hi of hints){
+            if((hn.includes(hi)||hi.includes(hn))&&hi.length>best.score){best={idx:h.idx,score:hi.length};}
+          }
+        }
+        if(best.idx>=0){usedCols.add(best.idx);return best.idx;}
+        return -1;
+      }
+      const matched={};FIELDS.forEach(f=>{matched[f.key]=am3(f.hints)});
+      window.__HROW = hRow; // store for di() to map images by row index
+      const nI=matched['name'],qI=matched['qty'];
+      const validRows=allRows.slice(hRow+1).filter(r=>{
+        if(!r||r.every(c=>c===null||c===undefined))return false;
+        const nv=nI>=0&&nI<r.length?r[nI]:null,qv=qI>=0&&qI<r.length?r[qI]:null;
+        return nv!==null&&String(nv).trim().length>0&&qv!==null&&parseFloat(String(qv).replace(/[^0-9.,]/g,'').replace(',','.'))>0;
+      });
+      const FLABELS={name:'Nazwa produktu',sku:'SKU produktu',qty:'Ilość sztuk (Suggested)',priceCNY:'Cena CNY/szt.',shipCN:'Transport CN',boxes:'Liczba kartonów',pcsBox:'Sztuk w kartonie',boxCBM:'CBM/karton',cbm:'Total CBM',weight:'Waga łączna (kg)',hs:'Kod HS',imageUrl:'URL zdjęcia 🖼️'};
+      const mapRows=FIELDS.map(f=>{
+        const auto=matched[f.key];
+        const opts=`<option value="-1">— pomiń —</option>`+hdrs.map(h=>`<option value="${h.idx}"${h.idx===auto?' selected':''}>${escHtml(h.orig)}</option>`).join('');
+        return`<div class="mr"><div class="mf">${FLABELS[f.key]} ${auto>=0?'<span class="ok">auto ✓</span>':'<span class="wn">wybierz</span>'}</div><span style="color:var(--color-text-secondary,#6b6b6b)">←</span><select id="mp-${f.key}">${opts}</select></div>`;
+      }).join('');
+      const prevH=hdrs.map(h=>`<th>${escHtml(h.orig)}</th>`).join('');
+      const prevR=validRows.slice(0,3).map(r=>`<tr>${hdrs.map(h=>`<td>${escHtml(String(r[h.idx]===null||r[h.idx]===undefined?'':r[h.idx]).substring(0,16))}</td>`).join('')}</tr>`).join('');
+      const shipIdx=matched['shipCN'];let suggestCNY=true;
+      if(shipIdx>=0){const vals=validRows.map(r=>parseFloat(String(r[shipIdx]||'0').replace(/[^0-9.,]/g,'').replace(',','.'))||0).filter(v=>v>0);if(vals.length){suggestCNY=vals.sort((a,b)=>a-b)[Math.floor(vals.length/2)]>20}}
+      shipCNisCNY=suggestCNY;
+      g('scn-cny').classList.toggle('on',suggestCNY);g('scn-loc').classList.toggle('on',!suggestCNY);
+      const imgInfo=matched['imageUrl']>=0?`<div style="background:#EEF3FA;border:.5px solid #c5d9f2;border-radius:6px;padding:7px 10px;font-size:11px;color:#1a4a7a;margin-bottom:8px">🖼️ Wykryto kolumnę URL zdjęć — będą wyświetlane w zakładce <strong>🖼️ Karty</strong>.</div>`:'';
+      area.innerHTML=`<div class="mc"><h3>Dopasuj kolumny — ${escHtml(file.name)}</h3>
+        <div style="font-size:11px;color:var(--color-text-secondary,#6b6b6b);margin-bottom:9px"><strong>${hdrs.length}</strong> kolumn · <strong style="color:var(--or)">${validRows.length} produktów</strong> · Auto: ${Object.values(matched).filter(v=>v>=0).length}/${FIELDS.length}${window.__NIMGS>0?' · <span style="color:#1D9E75;font-weight:600">🖼️ '+window.__NIMGS+' osadzonych zdjęć</span>':''}</div>
+        ${suggestCNY?`<div style="background:#EAF3DE;border:.5px solid #C0DD97;border-radius:6px;padding:7px 10px;font-size:11px;color:#3B6D11;margin-bottom:8px">✓ Shipping CN: wartości w <strong>¥ yuanach</strong>.</div>`:`<div style="background:#FAEEDA;border:.5px solid #FAC775;border-radius:6px;padding:7px 10px;font-size:11px;color:#854F0B;margin-bottom:8px">Shipping CN: sprawdź ustawienie w panelu bocznym.</div>`}
+        ${imgInfo}${mapRows}
+        <div style="font-size:10px;color:var(--color-text-secondary,#6b6b6b);margin:7px 0 2px">Podgląd:</div>
+        <div class="pw"><table><thead><tr>${prevH}</tr></thead><tbody>${prevR}</tbody></table></div>
+        <button class="btn" style="width:100%;margin:9px 0 0" onclick="di()">Importuj ${validRows.length} produktów →</button>
+      </div>`;
+      // Store validRows with original 0-based Excel row index for image mapping
+      window.__VR=validRows;
+      // Build mapping: validRow -> original Excel row index (0-based in allRows)
+      const vrRowIdx=[];
+      let vri=0;
+      for(let ri=0;ri<allRows.length;ri++){
+        const r=allRows[ri];
+        if(ri<=hRow)continue;
+        if(!r||r.every(c=>c===null||c===undefined))continue;
+        const nv=nI>=0&&nI<r.length?r[nI]:null,qv=qI>=0&&qI<r.length?r[qI]:null;
+        if(nv!==null&&String(nv).trim().length>0&&qv!==null&&parseFloat(String(qv).replace(/[^0-9.,]/g,'').replace(',','.'))>0){
+          vrRowIdx.push(ri); // ri is 0-based index into allRows = 0-based Excel row
+        }
+      }
+      window.__VRROWIDX=vrRowIdx;
+    }catch(ex){area.innerHTML=`<div style="color:#E24B4A;font-size:12px">Błąd: ${ex.message}</div>`}
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function di(){
+  const FK=['name','sku','qty','priceCNY','shipCN','boxes','pcsBox','boxCBM','cbm','weight','hs','imageUrl'];
+  const cm={};FK.forEach(k=>{const el=g('mp-'+k);if(el)cm[k]=parseInt(el.value)});
+  const gv=(r,k)=>{const i=cm[k];return(i!==undefined&&i>=0&&i<r.length)?r[i]:null};
+  const tn=v=>{
+    if(v===null||v===undefined)return 0;
+    if(typeof v==='number')return v;
+    let s=String(v).replace(/[^0-9.,\-]/g,'').trim(); // strip ¥, spaces, etc
+    if(!s)return 0;
+    // Detect thousand separator vs decimal separator
+    const lastComma=s.lastIndexOf(','), lastDot=s.lastIndexOf('.');
+    if(lastComma>lastDot){
+      // European: 3.300,00 -> comma is decimal, dots are thousands
+      s=s.replace(/\./g,'').replace(',','.');
+    } else if(lastDot>lastComma){
+      // US/UK: 3,300.00 -> dot is decimal, commas are thousands
+      s=s.replace(/,/g,'');
+    } else {
+      // Only one separator or none: treat comma as decimal
+      s=s.replace(',','.');
+    }
+    return parseFloat(s)||0;
+  };
+  const ts=v=>v===null||v===undefined?'':String(v).trim();
+  const imp=[];
+  const rowIdxArr=window.__VRROWIDX||[];
+  const imgMapGlobal=window.__IMGMAP||{};
+  let _imgIdx=0;
+  (window.__VR||[]).forEach((r,loopIdx)=>{
+    const name=ts(gv(r,'name')),qty=tn(gv(r,'qty'));if(!name||qty<=0){_imgIdx++;return;}
+    const sku=ts(gv(r,'sku'));
+    const priceCNY=tn(gv(r,'priceCNY')),shipCN=tn(gv(r,'shipCN'));
+    const boxes=tn(gv(r,'boxes')),pcsBox=Math.max(tn(gv(r,'pcsBox')),1),boxCBM=tn(gv(r,'boxCBM'));
+    let cbm=tn(gv(r,'cbm'));if(cbm<=0&&boxCBM>0&&boxes>0)cbm=boxCBM*boxes;if(cbm<=0)cbm=0.001;
+    const weight=tn(gv(r,'weight')),hs=ts(gv(r,'hs'));
+    // Get imageUrl: first try text column, then embedded image map
+    let imageUrl=ts(gv(r,'imageUrl'));
+    if(!imageUrl){
+      const excelRow=rowIdxArr[loopIdx]; // 0-based Excel row index
+      if(excelRow!==undefined&&imgMapGlobal[excelRow]){
+        imageUrl=imgMapGlobal[excelRow];
+      }
+    }
+    let dutyFromHS=null;
+    if(hs){const found=hsDB.find(h=>h.code===hs||h.code===hs.replace('.',''));if(found)dutyFromHS=found.duty;}
+    // Auto-generate SKU from Item NO. if no dedicated SKU column
+    let finalSku=sku;
+    if(!finalSku){
+      // Try col 0 (Item NO.) - always present in supplier templates
+      const itemNo=r[0];
+      if(itemNo!==null&&itemNo!==undefined&&String(itemNo).trim()!==''&&!isNaN(parseFloat(String(itemNo)))){
+        finalSku='P'+String(Math.round(parseFloat(itemNo))).padStart(3,'0');
+      } else if(itemNo!==null&&itemNo!==undefined&&String(itemNo).trim()!==''){
+        finalSku=String(itemNo).trim().slice(0,12);
+      } else {
+        // fallback: sequential index
+        finalSku='P'+(String(_imgIdx+1).padStart(3,'0'));
+      }
+    }
+    imp.push({name,sku:finalSku,qty,priceCNY,shipCN,boxes,pcsBox,boxCBM,cbm,weight,hs,imageUrl,duty:dutyFromHS,extraCosts:0});
+  });
+  if(imp.length){
+    ps=imp;
+    const hsAuto=imp.filter(p=>p.duty!==null).length;
+    const hasImgs=imp.filter(p=>p.imageUrl).length;
+    g('ia').innerHTML=`<div style="color:#1D9E75;font-size:12px;padding:9px 11px;background:#EAF3DE;border-radius:7px;margin-top:7px">✓ Zaimportowano <strong>${imp.length}</strong> produktów${hasImgs?` · 🖼️ <strong>${hasImgs}</strong> zdjęć`:''}${hsAuto?` · 🏷️ Cło z bazy HS: <strong>${hsAuto}</strong> prod.`:''}</div>`;
+    setTimeout(()=>{sv('calc');st2('d');rc();sbAutoTrigger();},700);
+  }else{
+    g('ia').innerHTML+='<div style="color:#E24B4A;font-size:12px;margin-top:7px;padding:8px 11px;background:#FCEBEB;border-radius:7px">Błąd importu. Sprawdź czy "Nazwa" i "Ilość" są poprawnie dopasowane.</div>';
+  }
+}
+
+// ═══ SAVED QUOTES ═══
+function getQuotes(){try{return JSON.parse(localStorage.getItem('icalc_quotes')||'[]')}catch{return[]}}
+function lsUsedKB(){
+  let total=0;
+  try{for(const k in localStorage){if(localStorage.hasOwnProperty(k))total+=((localStorage[k]||'').length+(k||'').length)*2;}}catch{}
+  return Math.round(total/1024);
+}
+
+async function compressImageToThumb(dataUrl, maxBytes){
+  // Compress base64 image to tiny thumbnail (max ~5KB)
+  return new Promise(resolve=>{
+    if(!dataUrl||!dataUrl.startsWith('data:image')){resolve(dataUrl||'');return;}
+    const img=new Image();
+    img.onload=()=>{
+      const canvas=document.createElement('canvas');
+      // Scale down to max 200px on longest side
+      const maxPx=maxBytes&&maxBytes<5000?80:200;
+      const scale=Math.min(maxPx/img.width,maxPx/img.height,1);
+      canvas.width=Math.round(img.width*scale);
+      canvas.height=Math.round(img.height*scale);
+      canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+      // Try quality 0.75 first, then lower if still too big
+      let result=canvas.toDataURL('image/jpeg',0.75);
+      const limit=(maxBytes||25000)*1.37;
+      if(result.length>limit) result=canvas.toDataURL('image/jpeg',0.5);
+      if(result.length>limit) result=canvas.toDataURL('image/jpeg',0.3);
+      resolve(result);
+    };
+    img.onerror=()=>resolve('');
+    img.src=dataUrl;
+  });
+}
+
+async function stripImagesFromSnap(snap){
+  const s=JSON.parse(JSON.stringify(snap));
+  if(s.products){
+    s.products=await Promise.all(s.products.map(async p=>{
+      // Zachowaj tylko potrzebne pola w wycenie — oszczędność miejsca
+      const lean={
+        name:p.name, sku:p.sku||'', qty:p.qty, priceCNY:p.priceCNY,
+        shipCN:p.shipCN||0, cbm:p.cbm||0, boxCBM:p.boxCBM||0, boxes:p.boxes||0,
+        weight:p.weight||0, hs:p.hs||'', duty:p.duty, extraCosts:p.extraCosts||0,
+        imageUrl:''
+      };
+      // Zdjęcie: URL kosztuje ~100 bajtów, base64 kompresujemy
+      if(p.imageUrl){
+        if(p.imageUrl.startsWith('http')){
+          lean.imageUrl=p.imageUrl; // URL — zostawamy
+        } else if(p.imageUrl.startsWith('data:image')){
+          lean.imageUrl=await compressImageToThumb(p.imageUrl,8000); // mała miniatura
+        }
+      }
+      return lean;
+    }));
+  }
+  return s;
+}
+
+function setQuotes(q){
+  // Strip images before saving to save space
+  // async compress images in all quotes, then save
+  Promise.all(q.map(snap=>stripImagesFromSnap(snap))).then(lean=>{
+    const data=JSON.stringify(lean);
+    try{
+      localStorage.setItem('icalc_quotes',data);
+      updateStorageBar();
+      if(typeof fbPushQuotes==='function')fbPushQuotes();
+    }catch(e){
+      // Quota exceeded — try removing oldest quotes until it fits
+      if(lean.length>1){
+        const trimmed=lean.slice(0,Math.max(1,lean.length-2));
+        try{
+          localStorage.setItem('icalc_quotes',JSON.stringify(trimmed));
+          showStorageWarning('Brak miejsca — usunięto '+(lean.length-trimmed.length)+' najstarsze wyceny. Użyte: '+lsUsedKB()+' KB / ~5000 KB.');
+          updateStorageBar();
+          return;
+        }catch{}
+      }
+      showStorageWarning('Krytyczny brak miejsca w localStorage ('+lsUsedKB()+' KB). Wyczyść stare wyceny ręcznie.');
+    }
+  });
+}
+
+function showStorageWarning(msg){
+  let el=document.getElementById('storage-warn');
+  if(!el){
+    el=document.createElement('div');
+    el.id='storage-warn';
+    el.style.cssText='position:fixed;bottom:12px;right:12px;background:#854F0B;color:white;padding:10px 14px;border-radius:8px;font-size:11px;max-width:320px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.3);line-height:1.5';
+    document.body.appendChild(el);
+  }
+  el.innerHTML=msg+'<button onclick="this.parentElement.remove()" style="display:block;margin-top:6px;background:rgba(255,255,255,.2);border:none;color:white;border-radius:4px;padding:3px 10px;cursor:pointer;font-size:11px">OK</button>';
+}
+
+function saveQuote(){
+  const nameEl=g('qname'),name=(nameEl.value||'').trim();
+  if(!name){nameEl.style.border='.5px solid #E24B4A';nameEl.focus();return}
+  nameEl.style.border='';
+  if(!ps.length){alert('Dodaj produkty przed zapisaniem wyceny.');return}
+  const quotes=getQuotes();
+  const snap={
+    id:Date.now(),name,date:new Date().toISOString().split('T')[0],note:g('qn').value,
+    products:JSON.parse(JSON.stringify(ps)),
+    settings:{ct:g('ct').value,cv:gn('cv'),fr:gn('fr'),cu:cur(),ra:rate(),kc:gn('kc'),kp:gn('kp'),kl:gn('kl'),ki:gn('ki'),ko:gn('ko'),du:getDuty(),va:getVAT(),splitMode,shipCNisCNY},
+    totalCost:ps.reduce((s,p)=>s+calc(p,ps).tot,0),currency:cur()
+  };
+  quotes.unshift(snap);setQuotes(quotes);nameEl.value='';
+  // Update product DB for each product with SKU
+  updateProductsDB(snap);
+  const fb=g('save-feedback');fb.style.display='block';setTimeout(()=>fb.style.display='none',1800);
+  updateStorageBar();
+  sbAutoTrigger();
+}
+
+function loadQuote(id){
+  const q=getQuotes().find(x=>x.id===id);if(!q)return;
+  // Merge saved thumbnails with current session images (current session wins if available)
+  const currentImgMap={};
+  ps.forEach(p=>{if(p.imageUrl&&p.sku)currentImgMap[p.sku]=p.imageUrl;if(p.imageUrl&&p.name)currentImgMap[p.name]=p.imageUrl;});
+  ps=q.products.map(p=>{
+    const sessionImg=currentImgMap[p.sku]||currentImgMap[p.name]||'';
+    return {...p, imageUrl: sessionImg||p.imageUrl||''};
+  });
+  const s=q.settings||{};
+  ['ct','cv','fr','cu','ra','kc','kp','kl','ki','ko','du','va'].forEach(k=>{if(s[k]!==undefined&&g(k))g(k).value=s[k];});
+  splitMode=s.splitMode||'cbm';shipCNisCNY=s.shipCNisCNY!==false;
+  ss(splitMode);setShipCur(shipCNisCNY?'CNY':'LOCAL');
+  if(q.note)g('qn').value=q.note;
+  sv('calc');st2('d');rc();
+}
+
+function deleteQuote(id,e){
+  e.stopPropagation();if(!confirm('Usunąć tę wycenę?'))return;
+  setQuotes(getQuotes().filter(x=>x.id!==id));
+  if(typeof fbRemoveQuote==='function')fbRemoveQuote(id);
+  renderQuotes();
+  sbAutoTrigger(); // sync usunięcia do chmury
+}
+
+function renderQuotes(){
+  const quotes=getQuotes(),el=g('quotes-list');
+  if(!quotes.length){
+    el.innerHTML='<div class="q-empty"><div style="font-size:32px;margin-bottom:9px">💾</div><div>Brak zapisanych wycen.</div><div style="margin-top:5px;font-size:11px">Użyj pola "Zapisz wycenę" w lewym panelu kalkulatora.</div></div>';
+    return;
+  }
+  el.innerHTML=quotes.map(q=>`<div class="qcard" onclick="loadQuote(${q.id})">
+    <div class="qcard-dot">${(q.name||'W').charAt(0).toUpperCase()}</div>
+    <div class="qcard-body"><div class="qcard-name">${escHtml(q.name)}</div><div class="qcard-meta">${q.date} · ${(q.products||[]).length} produktów${q.note?' · '+escHtml(q.note):''}</div></div>
+    <div class="qcard-price">${q.totalCost?q.totalCost.toFixed(0)+' '+q.currency:''}</div>
+    <button class="qcard-del" onclick="deleteQuote(${q.id},event)" title="Usuń">🗑</button>
+  </div>`).join('');
+}
+
+// ═══ HS DATABASE ═══
+function loadHSDB(){try{hsDB=JSON.parse(localStorage.getItem('icalc_hsdb')||'[]')}catch{hsDB=[]}}
+function saveHSDB(){try{localStorage.setItem('icalc_hsdb',JSON.stringify(hsDB)); if(typeof fbPushHSDB==='function')fbPushHSDB()}catch(e){showStorageWarning('Błąd zapisu bazy HS. Brak miejsca w localStorage.');}}
+
+let hsAssignTarget=null; // product to assign HS to
+
+function searchProductsForHS(){
+  const q=(g('hs-prod-search').value||'').toLowerCase().trim();
+  const res=g('hs-prod-results');
+  if(!q){res.style.display='none';return;}
+  const db=getProductsDB();
+  const hits=db.filter(p=>p.name.toLowerCase().includes(q)||(p.sku||'').toLowerCase().includes(q)).slice(0,8);
+  if(!hits.length){res.style.display='none';return;}
+  res.style.display='block';
+  res.innerHTML=hits.map(p=>`<div data-pkey="${escHtml(p.key)}" onclick="selectHSAssignTarget(this.dataset.pkey)" style="padding:8px 11px;cursor:pointer;border-bottom:.5px solid var(--color-border-tertiary,#e0dedd);display:flex;align-items:center;gap:8px" onmouseover="this.style.background='var(--orl)'" onmouseout="this.style.background=''">
+    ${p.imageUrl?`<img src="${escHtml(p.imageUrl)}" style="width:28px;height:28px;object-fit:cover;border-radius:4px;flex-shrink:0">`:'<div style="width:28px;height:28px;background:var(--color-background-secondary,#f5f4f1);border-radius:4px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px">📦</div>'}
+    <div style="flex:1;min-width:0">
+      <div style="font-size:11px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(p.name)}</div>
+      <div style="font-size:10px;color:var(--color-text-secondary,#6b6b6b)">${p.sku?'SKU: '+escHtml(p.sku):''} ${p.hs?'· HS: '+escHtml(p.hs):''}</div>
+    </div>
+  </div>`).join('');
+}
+
+function selectHSAssignTarget(key){
+  const db=getProductsDB();
+  const p=db.find(x=>x.key===key);
+  if(!p)return;
+  hsAssignTarget=p;
+  g('hs-prod-search').value=p.name;
+  g('hs-prod-results').style.display='none';
+  // Fill name field with product name
+  if(g('hf-name'))g('hf-name').value=p.name;
+  // Show banner
+  const banner=g('hs-assign-banner');
+  if(banner){banner.style.display='flex';g('hs-assign-name').textContent=p.name;g('hs-assign-sku').textContent=p.sku?'('+p.sku+')':(p.hs?'HS: '+p.hs:'');}
+}
+
+function clearHSAssign(){
+  hsAssignTarget=null;
+  if(g('hs-prod-search'))g('hs-prod-search').value='';
+  if(g('hs-prod-results'))g('hs-prod-results').style.display='none';
+  const banner=g('hs-assign-banner');
+  if(banner)banner.style.display='none';
+}
+
+function addHSEntry(){
+  const code=(g('hf-code').value||'').trim(),name=(g('hf-name').value||'').trim();
+  const duty=parseFloat(g('hf-duty').value)||0,note=(g('hf-note').value||'').trim();
+  if(!code){g('hf-code').style.border='.5px solid #E24B4A';g('hf-code').focus();return}
+  if(!name){g('hf-name').style.border='.5px solid #E24B4A';g('hf-name').focus();return}
+  g('hf-code').style.border='';g('hf-name').style.border='';
+  if(hsDB.find(h=>h.code===code)){if(!confirm('Kod '+code+' już istnieje. Nadpisać?'))return;hsDB=hsDB.filter(h=>h.code!==code);}
+  hsDB.unshift({id:Date.now(),code,name,duty,note,source:'manual'});
+  saveHSDB();
+  // If assigning to a specific product — update that product in DB
+  if(hsAssignTarget){
+    const db=getProductsDB();
+    const p=db.find(x=>x.key===hsAssignTarget.key);
+    if(p){p.hs=code;p.duty=duty;setProductsDB(db);}
+    // Also update in current session ps[] if SKU matches
+    ps.forEach(prod=>{
+      if((hsAssignTarget.sku&&prod.sku===hsAssignTarget.sku)||(prod.name===hsAssignTarget.name)){
+        prod.hs=code;prod.duty=duty;
+      }
+    });
+    rc();
+    showStorageWarning('✓ Przypisano kod HS '+code+' do produktu: '+hsAssignTarget.name);
+    clearHSAssign();
+  }
+  g('hf-code').value='';g('hf-name').value='';g('hf-duty').value='';g('hf-note').value='';
+  renderHS();
+}
+
+function deleteHS(id,e){
+  e&&e.stopPropagation();if(!confirm('Usunąć ten kod HS?'))return;
+  const old=hsDB.find(h=>h.id===id);hsDB=hsDB.filter(h=>h.id!==id);if(typeof fbRemoveHS==='function')fbRemoveHS(old);saveHSDB();renderHS();
+}
+
+function applyHSDuty(duty){
+  g('du').value=duty;rc();
+  g('du').style.background='#EAF3DE';setTimeout(()=>{g('du').style.background='';},900);
+  const info=document.getElementById('cn-duty-info');
+  if(info){info.textContent='🇨🇳 Zastosowano stawkę CN: '+duty+'%';info.style.display='block';setTimeout(()=>info.style.display='none',2500);}
+}
+
+function renderHS(){
+  const f=(g('hs-filter').value||'').toLowerCase();
+  const rows=hsDB.filter(h=>!f||h.code.toLowerCase().includes(f)||h.name.toLowerCase().includes(f));
+  g('hs-empty').style.display=hsDB.length===0?'block':'none';
+  g('hs-tbody').innerHTML=rows.map(h=>`<tr>
+    <td><span class="hs-code">${escHtml(h.code)}</span> <a href="https://ec.europa.eu/taxation_customs/dds2/taric/taric_consultation.jsp?Lang=pl&Area=CN&Expand=true&LangDescr=pl&Code=${encodeURIComponent(h.code.replace('.',''))}" target="_blank" title="Sprawdź stawkę dla Chin w TARIC" style="font-size:9px;color:var(--blue);text-decoration:none;white-space:nowrap">🇨🇳 CN</a></td>
+    <td>${escHtml(h.name)}</td>
+    <td><span class="hs-duty-badge">${h.duty}%</span> <span style="font-size:9px">🇨🇳</span></td>
+    <td style="font-size:10px;color:var(--color-text-secondary,#6b6b6b)">${escHtml(h.note||'')}</td>
+    <td><span class="hs-tag">${h.source==='taric'?'TARIC EU':'Ręczny'}</span></td>
+    <td style="white-space:nowrap">
+      <button onclick="applyHSDuty(${h.duty})" style="background:#EAF3DE;color:#3B6D11;border:none;border-radius:4px;padding:2px 7px;font-size:9px;cursor:pointer;margin-right:3px" title="Ustaw jako globalną stawkę cła">Użyj %</button>
+      <button class="db" onclick="deleteHS(${h.id},event)">✕</button>
+    </td>
+  </tr>`).join('');
+}
+
+// ═══ TARIC ═══
+const TARIC_DB=[
+  {code:'8471.30',desc:'Laptopy i przenośne komputery',duty:0,hint:'laptop computer notebook'},
+  {code:'8517.12',desc:'Telefony komórkowe / smartfony',duty:0,hint:'phone smartphone mobile'},
+  {code:'8471.60',desc:'Myszy, klawiatury, urządzenia wejściowe',duty:0,hint:'mouse keyboard peripherals'},
+  {code:'8543.70',desc:'Urządzenia elektryczne — inne',duty:2.7,hint:'electronics gadgets electric'},
+  {code:'8516.50',desc:'Kuchenki mikrofalowe',duty:3.5,hint:'microwave oven'},
+  {code:'8516.60',desc:'Piekarniki elektryczne / tosterki',duty:3.5,hint:'oven toaster electric'},
+  {code:'9403.20',desc:'Meble metalowe (inne niż biurowe)',duty:0,hint:'furniture metal shelf rack'},
+  {code:'9403.60',desc:'Meble drewniane — inne',duty:2.7,hint:'furniture wood wooden'},
+  {code:'9403.70',desc:'Meble z tworzyw sztucznych',duty:2.7,hint:'furniture plastic'},
+  {code:'9401.30',desc:'Krzesła obrotowe z regulacją wysokości',duty:0,hint:'chair office swivel seat'},
+  {code:'9401.61',desc:'Krzesła drewniane — inne',duty:5.6,hint:'chair wooden'},
+  {code:'9404.21',desc:'Materace piankowe',duty:6,hint:'mattress foam'},
+  {code:'6302.21',desc:'Pościel bawełniana',duty:12,hint:'bedding sheets cotton linen'},
+  {code:'6304.19',desc:'Poduszki, kołdry i podkładki',duty:12,hint:'pillow cushion blanket'},
+  {code:'6403.99',desc:'Obuwie ze skórzaną cholewką',duty:3.5,hint:'shoes footwear leather'},
+  {code:'6404.19',desc:'Obuwie z cholewką tekstylną',duty:12,hint:'shoes sneakers textile'},
+  {code:'6101.20',desc:'Odzież wierzchnia z bawełny (męska)',duty:12,hint:'clothing cotton jacket coat'},
+  {code:'6109.10',desc:'T-shirty i podkoszulki z bawełny',duty:12,hint:'t-shirt cotton clothing'},
+  {code:'7013.49',desc:'Naczynia ze szkła do celów stołowych',duty:15,hint:'glass tableware drinking cup'},
+  {code:'3924.10',desc:'Naczynia stołowe z tworzyw sztucznych',duty:6.5,hint:'plastic tableware kitchen bowl'},
+  {code:'7323.93',desc:'Artykuły kuchenne ze stali nierdzewnej',duty:3,hint:'stainless steel kitchen cookware pot'},
+  {code:'8215.99',desc:'Sztućce i akcesoria stołowe',duty:3,hint:'cutlery spoon fork knife'},
+  {code:'9503.00',desc:'Zabawki, gry i artykuły sportowe dla dzieci',duty:4.7,hint:'toy game children kids'},
+  {code:'9506.91',desc:'Wyposażenie siłowni i fitness',duty:2.7,hint:'gym fitness equipment dumbbell'},
+  {code:'4202.22',desc:'Torebki damskie i portfele ze skóry syntetycznej',duty:3.7,hint:'handbag wallet bag purse'},
+  {code:'3304.99',desc:'Kosmetyki — inne preparaty upiększające',duty:6.5,hint:'cosmetics beauty cream lotion'},
+  {code:'3305.10',desc:'Szampony',duty:6.5,hint:'shampoo hair care'},
+  {code:'3926.90',desc:'Wyroby z tworzyw sztucznych — różne',duty:6.5,hint:'plastic articles products misc'},
+  {code:'4016.99',desc:'Wyroby z gumy wulkanizowanej — inne',duty:6.5,hint:'rubber products'},
+  {code:'6306.22',desc:'Namioty z włókien syntetycznych',duty:12,hint:'tent camping outdoor'},
+  {code:'8301.40',desc:'Zamki, zasuwki i kłódki',duty:3,hint:'lock padlock security'},
+  {code:'4421.99',desc:'Wyroby z drewna — inne',duty:3.7,hint:'wood wooden products'},
+  {code:'7616.99',desc:'Wyroby z aluminium — inne',duty:6,hint:'aluminium products'},
+  {code:'9612.10',desc:'Taśmy barwiące do drukarek',duty:3,hint:'printer ribbon cartridge ink'},
+  {code:'6217.10',desc:'Akcesoria odzieżowe — inne',duty:12,hint:'accessories clothing belt'},
+  {code:'8713.10',desc:'Wózki inwalidzkie (bez silnika)',duty:0,hint:'wheelchair medical'},
+  {code:'6911.10',desc:'Naczynia porcelanowe i ceramiczne',duty:12,hint:'ceramic porcelain tableware'},
+  {code:'8716.80',desc:'Wózki transportowe i pojazdy bez napędu',duty:2.7,hint:'trolley cart wagon'},
+  {code:'8304.00',desc:'Pojemniki biurowe i kartoteki',duty:2.7,hint:'office storage organizer'},
+  {code:'9001.50',desc:'Okulary korekcyjne i soczewki',duty:2.9,hint:'glasses eyewear lens sunglasses'},
+  {code:'8214.20',desc:'Zestawy do manicure i pedicure',duty:3.7,hint:'manicure pedicure nail'},
+  {code:'6116.93',desc:'Rękawiczki z włókien syntetycznych',duty:12,hint:'gloves synthetic'},
+  {code:'6214.20',desc:'Szale i chusty z wełny',duty:6.3,hint:'scarf shawl wool'},
+  {code:'8481.80',desc:'Zawory, kurki i kraniki',duty:2.7,hint:'valve tap faucet plumbing'},
+  {code:'7321.11',desc:'Kuchenki gazowe',duty:3.5,hint:'gas stove cooker'},
+  {code:'3926.30',desc:'Okucia i osprzęt budowlany z tworzyw',duty:6.5,hint:'plastic fittings hardware'},
+  {code:'8210.00',desc:'Ręczne urządzenia kuchenne mechaniczne',duty:1.7,hint:'kitchen manual tool gadget'},
+  // AGD / ELEKTRONIKA
+  {code:'8509.80',desc:'Suszarki do włosów i urządzenia fryzjerskie',duty:2.3,hint:'hair dryer suszarka wlosy fryzjer blow dryer'},
+  {code:'8509.40',desc:'Młynki elektryczne do żywności',duty:2.3,hint:'grinder blender food processor mlynek'},
+  {code:'8509.10',desc:'Odkurzacze',duty:2.3,hint:'vacuum cleaner odkurzacz hoover'},
+  {code:'8516.31',desc:'Suszarki do włosów (inne)',duty:2.3,hint:'hair dryer suszarka do wlosow'},
+  {code:'8516.33',desc:'Pozostałe urządzenia fryzjerskie',duty:2.3,hint:'hair straightener prostownica lokówka curler'},
+  {code:'8516.40',desc:'Żelazka elektryczne',duty:3.5,hint:'iron zelazko steam iron'},
+  {code:'8516.71',desc:'Ekspresy do kawy',duty:2.3,hint:'coffee maker ekspres do kawy espresso'},
+  {code:'8516.72',desc:'Tosterka / toster',duty:3.5,hint:'toaster toster bread'},
+  {code:'8516.79',desc:'Inne urządzenia elektryczne AGD',duty:3.5,hint:'agd appliance electric household'},
+  {code:'8508.11',desc:'Odkurzacze bezprzewodowe',duty:2.3,hint:'cordless vacuum odkurzacz bezprzewodowy robot'},
+  {code:'8508.19',desc:'Odkurzacze — pozostałe',duty:2.3,hint:'vacuum cleaner odkurzacz robot roomba'},
+  {code:'8421.12',desc:'Suszarki do bielizny (wirówki)',duty:2.5,hint:'tumble dryer suszarka bielizna laundry'},
+  {code:'8450.11',desc:'Pralki automatyczne ≤6 kg',duty:2.5,hint:'washing machine pralka automatyczna'},
+  {code:'8450.12',desc:'Pralki automatyczne >6 kg',duty:2.5,hint:'washing machine pralka'},
+  {code:'8418.10',desc:'Lodówko-zamrażarki (kombinowane)',duty:2.5,hint:'fridge freezer lodowka zamrazarka'},
+  {code:'8418.21',desc:'Lodówki domowe — sprężarkowe',duty:2.5,hint:'refrigerator lodowka fridge'},
+  {code:'8418.30',desc:'Zamrażarki skrzynkowe',duty:2.5,hint:'chest freezer zamrazarka'},
+  {code:'8422.11',desc:'Zmywarki do naczyń domowe',duty:2.5,hint:'dishwasher zmywarka naczynia'},
+  // SPORT / OUTDOOR
+  {code:'9506.11',desc:'Narty i deski snowboardowe',duty:2.7,hint:'ski snowboard winter sport narty'},
+  {code:'9506.31',desc:'Kije golfowe — żelaza',duty:2.7,hint:'golf club iron'},
+  {code:'9506.40',desc:'Artykuły do tenisa stołowego',duty:2.7,hint:'table tennis ping pong tenis stolowy'},
+  {code:'9506.62',desc:'Piłki — pozostałe (nie golfowe/tenisowe)',duty:2.7,hint:'ball pilka football soccer basketball'},
+  {code:'9506.70',desc:'Łyżworolki i wrotki',duty:2.7,hint:'roller skate rolki wrotki'},
+  {code:'9507.30',desc:'Wędki i akcesoria wędkarskie',duty:2.7,hint:'fishing rod wedka tackle'},
+  {code:'6210.10',desc:'Odzież z włókniny (kombinezony)',duty:12,hint:'protective clothing kombinezon suit nonwoven'},
+  {code:'6211.33',desc:'Dresy i stroje sportowe z włókien syntetycznych',duty:12,hint:'sportswear tracksuit dres sport'},
+  {code:'6112.11',desc:'Stroje kąpielowe z włókien syntetycznych',duty:12,hint:'swimwear swimsuit kostium kapielowy'},
+  // NARZĘDZIA / DIY
+  {code:'8467.11',desc:'Wiertarki pneumatyczne',duty:1.7,hint:'drill pneumatic air tool wiertarka'},
+  {code:'8467.21',desc:'Wiertarki elektryczne z silnikiem',duty:1.7,hint:'electric drill wiertarka elektryczna'},
+  {code:'8467.22',desc:'Piły elektryczne',duty:1.7,hint:'electric saw pila elektryczna jigsaw'},
+  {code:'8467.29',desc:'Inne elektronarzędzia',duty:1.7,hint:'power tool elektronarzedzie grinder szlifierka'},
+  {code:'8205.59',desc:'Narzędzia ręczne — inne',duty:2.7,hint:'hand tool narzedziie hammer młotek wrench klucz'},
+  {code:'8211.92',desc:'Noże — inne (nie kuchenne)',duty:2.7,hint:'knife nóż blade'},
+  {code:'8301.20',desc:'Kłódki',duty:3,hint:'padlock klodka lock'},
+  // OŚWIETLENIE
+  {code:'9405.10',desc:'Żyrandole i oprawy sufitowe',duty:2.7,hint:'chandelier ceiling light zyrandol lampa sufit'},
+  {code:'9405.20',desc:'Lampy stołowe i podłogowe elektryczne',duty:2.7,hint:'table lamp floor lamp lampa stolowa podlogowa'},
+  {code:'9405.40',desc:'Inne lampy i oprawy elektryczne',duty:2.7,hint:'lamp light oprawa oswietlenie led'},
+  {code:'9405.50',desc:'Urządzenia do oświetlenia nieelektryczne',duty:2.7,hint:'candle holder swiecznik lighting'},
+  {code:'8539.50',desc:'Diody elektroluminescencyjne LED',duty:2.7,hint:'led diode bulb zarowka led strip'},
+  // MOTORYZACJA / ROWERY
+  {code:'8714.91',desc:'Ramy i widelce do rowerów',duty:0,hint:'bicycle frame fork rower rama'},
+  {code:'8714.99',desc:'Części i akcesoria do rowerów',duty:4.7,hint:'bike parts accessories rower czesci'},
+  {code:'8712.00',desc:'Rowery (bez silnika)',duty:15,hint:'bicycle bike rower'},
+  {code:'8714.20',desc:'Części do motocykli',duty:6.5,hint:'motorcycle parts motocykl czesci'},
+  {code:'8708.29',desc:'Części nadwozia samochodowego',duty:4.5,hint:'car body parts karoseria auto'},
+  {code:'8708.99',desc:'Inne części i akcesoria do pojazdów',duty:4.5,hint:'car parts auto parts akcesoria samochodowe'},
+  {code:'4011.10',desc:'Opony do samochodów osobowych',duty:4.5,hint:'tyre tire opona samochodowa'},
+  // DZIECKO / NIEMOWLĘ
+  {code:'9401.80',desc:'Siedziska inne (fotele, huśtawki)',duty:2.7,hint:'baby seat chair fotel dziecko krzeslo'},
+  {code:'9402.10',desc:'Fotele stomatologiczne i medyczne',duty:2.7,hint:'medical chair dental fotel medyczny'},
+  {code:'6111.20',desc:'Odzież dziecięca z bawełny (niemowlęca)',duty:12,hint:'baby clothes cotton niemowle dziecko'},
+  {code:'9404.29',desc:'Materace inne',duty:6,hint:'mattress materac baby dziecko'},
+  {code:'8715.00',desc:'Wózki dziecięce i części',duty:4.7,hint:'baby stroller wózek dzieciecy pram'},
+  // PAPIERNICZE / BIUROWE
+  {code:'4820.10',desc:'Rejestry, księgi rachunkowe, notatniki',duty:0,hint:'notebook notepad ksiazka notes'},
+  {code:'9608.10',desc:'Długopisy kulkowe',duty:2.7,hint:'ballpoint pen dlugopis'},
+  {code:'9609.10',desc:'Ołówki z grafitem',duty:2.7,hint:'pencil olowek grafitowy'},
+  {code:'4819.10',desc:'Pudełka kartonowe i tekturowe',duty:0,hint:'cardboard box karton pudelko packaging'},
+  // ZDROWIE / URODA / HIGIENA
+  {code:'9018.39',desc:'Strzykawki, igły i cewniki medyczne',duty:0,hint:'syringe needle medical strzykawka igla'},
+  {code:'9019.10',desc:'Urządzenia do masażu',duty:3.7,hint:'massage device masazer massager'},
+  {code:'3401.11',desc:'Mydło toaletowe',duty:6.5,hint:'soap mydlo toilet bar'},
+  {code:'3307.20',desc:'Dezodoranty i antyperspiranty',duty:6.5,hint:'deodorant antiperspirant deo'},
+  {code:'3301.29',desc:'Olejki eteryczne',duty:0,hint:'essential oil olejek eteryczny aromatherapy'},
+  {code:'9021.10',desc:'Ortezy i protezy ortopedyczne',duty:0,hint:'orthopedic brace support orteza'},
+  // OGRÓD
+  {code:'8432.10',desc:'Pługi rolnicze',duty:0,hint:'plow plough pług rolniczy'},
+  {code:'8432.80',desc:'Maszyny ogrodnicze inne',duty:0,hint:'garden machine ogrodnicza'},
+  {code:'8433.11',desc:'Kosiarki do trawy (silnik spalinowy)',duty:1.7,hint:'lawn mower kosiarka trawy petrol'},
+  {code:'8433.18',desc:'Kosiarki do trawy (inne)',duty:1.7,hint:'lawn mower kosiarka electric robot'},
+  {code:'3924.90',desc:'Artykuły gospodarstwa domowego z plastiku',duty:6.5,hint:'plastic household garden pot doniczka'},
+  {code:'6306.12',desc:'Namioty z włókien syntetycznych (inne)',duty:12,hint:'tent camping garden namiot ogrodowy'},
+  {code:'9406.10',desc:'Szklarnie i cieplarnie prefabrykowane',duty:2.7,hint:'greenhouse szklarnia garden'},
+  // ELEKTRONIKA UŻYTKOWA
+  {code:'8517.13',desc:'Smartfony i telefony komórkowe',duty:0,hint:'smartphone phone telefon komorowy iphone samsung'},
+  {code:'8471.30',desc:'Laptopy i komputery przenośne',duty:0,hint:'laptop notebook computer komputer'},
+  {code:'8471.41',desc:'Komputery stacjonarne',duty:0,hint:'desktop computer pc komputer stacjonarny'},
+  {code:'8528.72',desc:'Telewizory — odbiór kolorowy',duty:2.1,hint:'tv television telewizor monitor'},
+  {code:'8519.89',desc:'Głośniki i sprzęt audio',duty:3.5,hint:'speaker głośnik audio bluetooth'},
+  {code:'8518.10',desc:'Mikrofony',duty:3.5,hint:'microphone mikrofon recording'},
+  {code:'8518.30',desc:'Słuchawki',duty:3.5,hint:'headphones słuchawki earphones earbud'},
+  {code:'8523.51',desc:'Karty pamięci SSD i flash',duty:0,hint:'memory card ssd flash storage karta pamieci'},
+  {code:'8504.40',desc:'Prostowniki i konwertery elektryczne',duty:2.7,hint:'power supply charger ładowarka zasilacz'},
+  {code:'8504.31',desc:'Transformatory',duty:2.7,hint:'transformer transformator'},
+  {code:'8544.42',desc:'Przewody elektryczne z wtykami',duty:2.7,hint:'cable wire kabel przewod elektryczny'},
+  {code:'8536.50',desc:'Przełączniki i wyłączniki elektryczne',duty:2.7,hint:'switch wyłącznik przełącznik electric'},
+];
+
+
+// ═══ AI KOD HS SUGGESTOR ═══
+// Mapowanie kategorii dla inteligentnego local fallback
+const HS_KEYWORDS=[
+  {kw:['suszark','dryer','hair','fryzer','fryzjer','prostownic','lokówk','curler'],code:'8516.31',desc:'Suszarki do włosów i urządzenia fryzjerskie',duty:2.3},
+  {kw:['odkurzacz','vacuum','hoover','roomba','robot sprzątający'],code:'8508.19',desc:'Odkurzacze elektryczne',duty:2.3},
+  {kw:['farb','paint','akrylow','acrylic','lacquer','lakier'],code:'3209.10',desc:'Farby i lakiery akrylowe/poliuretanowe',duty:6.5},
+  {kw:['pędzel','brush','malarsk'],code:'9603.40',desc:'Pędzle malarskie i lakiernicze',duty:2.7},
+  {kw:['blender','mikser','mixer','smoothie'],code:'8509.40',desc:'Blendery i miksery elektryczne',duty:2.3},
+  {kw:['toster','toaster','opiekacz'],code:'8516.72',desc:'Tosterka elektryczna',duty:3.5},
+  {kw:['czajnik','kettle','water heater'],code:'8516.10',desc:'Czajniki elektryczne',duty:3.5},
+  {kw:['ekspres','coffee','kawa'],code:'8516.71',desc:'Ekspresy do kawy',duty:2.3},
+  {kw:['żelazk','iron','prasowani'],code:'8516.40',desc:'Żelazka elektryczne',duty:3.5},
+  {kw:['pralka','washing machine','piorąc'],code:'8450.12',desc:'Pralki automatyczne',duty:2.5},
+  {kw:['lodówk','fridge','refrigerator','chłodziar'],code:'8418.21',desc:'Lodówki domowe',duty:2.5},
+  {kw:['zmywark','dishwasher'],code:'8422.11',desc:'Zmywarki do naczyń',duty:2.5},
+  {kw:['mikrofalówk','microwave'],code:'8516.50',desc:'Kuchenki mikrofalowe',duty:3.5},
+  {kw:['klimatyza','air condition','aircondition'],code:'8415.10',desc:'Klimatyzatory',duty:2.5},
+  {kw:['wentylator','fan','cooling'],code:'8414.51',desc:'Wentylatory stołowe i stojące',duty:2.7},
+  {kw:['ładowark','charger','zasilacz','power supply'],code:'8504.40',desc:'Ładowarki i zasilacze elektryczne',duty:2.7},
+  {kw:['kabel','cable','przewód','wire'],code:'8544.42',desc:'Przewody elektryczne',duty:2.7},
+  {kw:['lampka','lampa','lamp','light','świetlówk','led'],code:'9405.20',desc:'Lampy elektryczne',duty:2.7},
+  {kw:['telefon','phone','smartphone','iphone','samsung','mobile'],code:'8517.13',desc:'Smartfony i telefony komórkowe',duty:0},
+  {kw:['laptop','notebook','komputer przenośny'],code:'8471.30',desc:'Laptopy',duty:0},
+  {kw:['słuchawk','headphone','earphone','earbud','airpod'],code:'8518.30',desc:'Słuchawki',duty:3.5},
+  {kw:['głośnik','speaker','bluetooth audio'],code:'8519.89',desc:'Głośniki audio',duty:3.5},
+  {kw:['telewizor','tv','television','monitor'],code:'8528.72',desc:'Telewizory',duty:2.1},
+  {kw:['kamera','camera','aparat foto','photo'],code:'8525.80',desc:'Kamery i aparaty cyfrowe',duty:0},
+  {kw:['zabawk','toy','gra dla dzieci','kids game'],code:'9503.00',desc:'Zabawki dla dzieci',duty:4.7},
+  {kw:['krzesło','chair','siedzisk'],code:'9401.61',desc:'Krzesła drewniane',duty:5.6},
+  {kw:['biurk','desk','stół','table'],code:'9403.60',desc:'Meble drewniane',duty:2.7},
+  {kw:['szaf','wardrobe','cabinet','komoda'],code:'9403.60',desc:'Meble drewniane — inne',duty:2.7},
+  {kw:['materac','mattress'],code:'9404.21',desc:'Materace piankowe',duty:6},
+  {kw:['poduszk','pillow','kołdr','blanket'],code:'6304.19',desc:'Poduszki i kołdry',duty:12},
+  {kw:['pościel','bedding','sheet','linen'],code:'6302.21',desc:'Pościel bawełniana',duty:12},
+  {kw:['buty','shoes','sneaker','obuwie'],code:'6404.19',desc:'Obuwie tekstylne',duty:12},
+  {kw:['torebka','bag','handbag','purse'],code:'4202.22',desc:'Torebki i portfele',duty:3.7},
+  {kw:['koszulka','t-shirt','tshirt','bluza'],code:'6109.10',desc:'T-shirty bawełniane',duty:12},
+  {kw:['skarpet','sock','skarpetk'],code:'6115.95',desc:'Skarpety i podkolanówki',duty:12},
+  {kw:['rower','bicycle','bike'],code:'8712.00',desc:'Rowery (bez silnika)',duty:15},
+  {kw:['hulajnog','scooter','kickscooter'],code:'8714.99',desc:'Hulajnogi i akcesoria',duty:4.7},
+  {kw:['namiot','tent','camping'],code:'6306.22',desc:'Namioty z włókien syntetycznych',duty:12},
+  {kw:['plecak','backpack','rucksack'],code:'4202.92',desc:'Plecaki i torby',duty:3.7},
+  {kw:['kosmetyk','cosmetic','krem','cream','lotion'],code:'3304.99',desc:'Kosmetyki i preparaty pielęgnacyjne',duty:6.5},
+  {kw:['szampon','shampoo'],code:'3305.10',desc:'Szampony',duty:6.5},
+  {kw:['mydło','soap'],code:'3401.11',desc:'Mydło toaletowe',duty:6.5},
+  {kw:['perfum','perfume','zapach','fragrance'],code:'3303.00',desc:'Perfumy i wody toaletowe',duty:6.5},
+  {kw:['masaż','massager','masażer'],code:'9019.10',desc:'Urządzenia do masażu',duty:3.7},
+  {kw:['wiertark','drill','wkrętark','screwdriver electric'],code:'8467.21',desc:'Wiertarki elektryczne',duty:1.7},
+  {kw:['szlifierk','grinder','piła'],code:'8467.29',desc:'Elektronarzędzia',duty:1.7},
+  {kw:['garnek','pot','patelni','pan','cookware'],code:'7323.93',desc:'Naczynia kuchenne ze stali',duty:3},
+  {kw:['talerz','plate','misek','bowl','naczynia'],code:'6911.10',desc:'Naczynia ceramiczne i porcelanowe',duty:12},
+  {kw:['sztućce','cutlery','widelec','łyżka','nóż kuchenny'],code:'8215.99',desc:'Sztućce i akcesoria stołowe',duty:3},
+  {kw:['okulary','glasses','sunglasses','eyewear'],code:'9001.50',desc:'Okulary i soczewki',duty:2.9},
+  {kw:['zegarek','watch','smartwatch'],code:'9102.11',desc:'Zegarki na rękę',duty:4.5},
+  {kw:['biżuteri','jewelry','naszyjnik','bransoletk','kolczyki'],code:'7117.19',desc:'Biżuteria jubilerska imitacja',duty:4},
+  {kw:['świeczk','candle','aromatyczn'],code:'3406.00',desc:'Świece i podobne wyroby',duty:6.5},
+];
+
+function localHSFallback(query){
+  const q = normPL(query);
+  const hits=[];
+  for(const item of HS_KEYWORDS){
+    const score=item.kw.filter(k=>q.includes(normPL(k))).length;
+    if(score>0) hits.push({...item,score});
+  }
+  return hits.sort((a,b)=>b.score-a.score).slice(0,4).map(h=>({
+    code:h.code, desc:h.desc, duty:h.duty, reason:'dopasowanie lokalne'
+  }));
+}
+
+async function aiSuggestHS(query){
+  const el=document.getElementById('ai-hs-result');
+  if(!el)return;
+  el.innerHTML='<div style="text-align:center;padding:10px;font-size:11px;color:var(--color-text-secondary,#6b6b6b)">🔎 Szukam dopasowania…</div>';
+  
+  // Try local keyword fallback first (instant, no API needed)
+  const localHits = localHSFallback(query);
+  if(localHits.length){
+    showAISuggestions(el, localHits, 'Dopasowania po słowach kluczowych');
+    return;
+  }
+  
+  // Try Anthropic API
+  try{
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({
+        model:'claude-haiku-4-5-20251001',
+        max_tokens:400,
+        system:'Odpowiadaj TYLKO JSON bez żadnego tekstu. Format: [{"code":"XXXX.XX","desc":"opis PL","duty":LICZBA,"reason":"uzasadnienie"}]. Max 4 obiekty.',
+        messages:[{role:'user',content:'Kody HS EU dla: "'+query+'"'}]
+      })
+    });
+    if(!resp.ok) throw new Error('HTTP '+resp.status);
+    const data=await resp.json();
+    if(data.error) throw new Error(data.error.message);
+    const text=(data.content||[]).map(b=>b.text||'').join('');
+    const clean=text.replace(/```json|```/g,'').trim();
+    const suggestions=JSON.parse(clean);
+    if(!Array.isArray(suggestions)||!suggestions.length) throw new Error('brak');
+    showAISuggestions(el, suggestions, 'Sugestie AI');
+  }catch(e){
+    // API failed - show helpful manual search
+    el.innerHTML=`<div style="background:var(--color-background-secondary,#f5f4f1);border-radius:7px;padding:10px;font-size:11px">
+      <div style="font-weight:500;margin-bottom:5px">Brak lokalnego dopasowania dla "<em>${escHtml(query)}</em>"</div>
+      <div style="color:var(--color-text-secondary,#6b6b6b);margin-bottom:8px">Wyszukaj ręcznie w oficjalnej bazie EU lub dodaj kod ręcznie w tabeli poniżej.</div>
+      <a href="https://ec.europa.eu/taxation_customs/dds2/taric/taric_consultation.jsp?Lang=pl&Area=CN&TextSearch=${encodeURIComponent(query)}" target="_blank" style="display:inline-block;padding:6px 12px;background:var(--blue);color:white;border-radius:6px;font-size:11px;text-decoration:none">🔍 Szukaj "${escHtml(query)}" w portalu TARIC EU →</a>
+    </div>`;
+  }
+}
+
+function showAISuggestions(el, suggestions, label){
+  el.innerHTML='<div style="font-size:10px;color:var(--color-text-secondary,#6b6b6b);margin-bottom:6px;font-weight:500">'+escHtml(label)+' (kliknij aby wybrać):</div>'+
+    suggestions.map(s=>`<div class="tri" data-code="${escHtml(s.code)}" data-desc="${escHtml(s.desc)}" data-duty="${s.duty}" onclick="selectAITaric(this.dataset.code,this.dataset.desc,parseFloat(this.dataset.duty),this)" style="margin-bottom:5px">
+      <div class="tri-code">${escHtml(s.code)}</div>
+      <div class="tri-desc">${escHtml(s.desc)}</div>
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:2px">
+        <span class="tri-duty">Stawka bazowa: ${s.duty}%</span>
+        <a href="https://ec.europa.eu/taxation_customs/dds2/taric/taric_consultation.jsp?Lang=pl&Area=CN&Expand=true&SimDate=&LangDescr=pl&Code=${escHtml(s.code.replace('.',''))}" target="_blank" style="font-size:9px;color:var(--blue);text-decoration:none" onclick="event.stopPropagation()">🇨🇳 Sprawdź stawkę CN →</a>
+      </div>
+    </div>`).join('')+
+    '<div style="margin-top:8px;background:#EEF3FA;border-radius:6px;padding:7px 9px;font-size:10px;color:#1a4a7a">💡 Stawki pokazane dla importu z Chin (CN). Zweryfikuj w portalu TARIC jeśli produkt może podlegać cłom antydumpingowym.</div>';
+}
+
+function selectAITaric(code,desc,duty,el){
+  document.querySelectorAll('.tri').forEach(e=>e.classList.remove('sel'));
+  el.classList.add('sel');
+  taricSel={code,desc,duty,source:'ai'};
+  g('taric-ok').disabled=false;
+}
+
+function openTaric(){
+  taricSel=null;
+  g('taric-results').innerHTML='';g('taric-q').value='';
+  g('taric-ok').disabled=true;
+  g('taric-modal').classList.add('on');
+  setTimeout(()=>g('taric-q').focus(),80);
+}
+
+function closeTaric(){g('taric-modal').classList.remove('on');taricSel=null;}
+
+// Normalizuje polskie znaki do ASCII dla porównań
+function normPL(s){
+  return String(s||'').toLowerCase()
+    .replace(/ą/g,'a').replace(/ć/g,'c').replace(/ę/g,'e').replace(/ł/g,'l')
+    .replace(/ń/g,'n').replace(/ó/g,'o').replace(/ś/g,'s').replace(/ź/g,'z')
+    .replace(/ż/g,'z').replace(/Ą/g,'a').replace(/Ć/g,'c').replace(/Ę/g,'e')
+    .replace(/Ł/g,'l').replace(/Ń/g,'n').replace(/Ó/g,'o').replace(/Ś/g,'s')
+    .replace(/Ź/g,'z').replace(/Ż/g,'z');
+}
+
+function scoreTaric(t, tokens){
+  const haystack = normPL(t.code+' '+t.desc+' '+t.hint);
+  let score = 0;
+  for(const tok of tokens){
+    if(haystack.includes(tok)) score += tok.length > 3 ? 3 : 1;
+    else if(tok.length >= 4 && haystack.includes(tok.slice(0,4))) score += 1;
+  }
+  return score;
+}
+
+function searchTaric(){
+  const raw=(g('taric-q').value||'').trim();
+  if(!raw)return;
+  const q=normPL(raw);
+  const tokens=q.split(/\s+/).filter(t=>t.length>=2);
+  const res=g('taric-results');
+  res.innerHTML='<div style="text-align:center;padding:14px;font-size:11px;color:var(--color-text-secondary,#6b6b6b)">Szukam…</div>';
+  setTimeout(()=>{
+    const scored=TARIC_DB
+      .map(t=>({t, score:scoreTaric(t,tokens)}))
+      .filter(x=>x.score>0)
+      .sort((a,b)=>b.score-a.score)
+      .slice(0,16)
+      .map(x=>x.t);
+    if(!scored.length){ window._aiQuery=raw;
+      res.innerHTML=`<div style="padding:14px">
+        <div style="text-align:center;font-size:12px;color:var(--color-text-secondary,#6b6b6b);margin-bottom:12px">Brak wyników dla "<strong>${escHtml(raw)}</strong>" w bazie lokalnej.</div>
+        <button onclick="aiSuggestHS(window._aiQuery)" style="display:block;width:100%;padding:10px;background:var(--or);color:white;border:none;border-radius:8px;font-size:12px;cursor:pointer;font-weight:500;margin-bottom:8px">🤖 Zapytaj AI o kod HS dla "${escHtml(raw)}"</button>
+        <div id="ai-hs-result" style="margin-bottom:8px"></div>
+        <div style="text-align:center;font-size:10px;color:var(--color-text-secondary,#6b6b6b)"><a href="https://ec.europa.eu/taxation_customs/dds2/taric/taric_consultation.jsp?Lang=pl&Area=CN&TextSearch=${encodeURIComponent(raw)}" target="_blank" style="color:var(--blue)">🔍 Szukaj w pełnym portalu TARIC →</a></div>
+      </div>`;
+      return;
+    }
+    res.innerHTML=scored.map(t=>`<div class="tri" onclick="selectTaric('${escHtml(t.code)}',this)">
+      <div class="tri-code">${escHtml(t.code)}</div>
+      <div class="tri-desc">${escHtml(t.desc)}</div>
+      <div class="tri-duty">🇨🇳 Stawka CN: ${t.duty}% <span style="font-size:9px;color:#aaa">(zweryfikuj dla CN)</span></div>
+    </div>`).join('')+
+    `<div style="text-align:right;margin-top:7px;font-size:10px;color:var(--color-text-secondary,#6b6b6b)"><a href="https://ec.europa.eu/taxation_customs/dds2/taric/taric_consultation.jsp?Lang=pl&Area=CN&TextSearch=${encodeURIComponent(raw)}" target="_blank" style="color:var(--blue)">Więcej w pełnym portalu TARIC →</a></div>`;
+  },150);
+}
+
+function selectTaric(code,el){
+  document.querySelectorAll('.tri').forEach(e=>e.classList.remove('sel'));
+  el.classList.add('sel');
+  taricSel=TARIC_DB.find(t=>t.code===code);
+  g('taric-ok').disabled=false;
+}
+
+function confirmTaric(){
+  if(!taricSel)return;
+  if(!hsDB.find(h=>h.code===taricSel.code)){
+    const src=taricSel.source||'taric';
+    hsDB.unshift({id:Date.now(),code:taricSel.code,name:taricSel.desc,duty:taricSel.duty,dutyCN:null,note:src==='ai'?'Sugestia AI — zweryfikuj stawkę CN w portalu TARIC':'',source:src});
+    saveHSDB();
+  }
+  closeTaric();sv('hs');
+}
+
+// ═══ PRODUCTS DATABASE ═══
+function getProductsDB(){try{return JSON.parse(localStorage.getItem('icalc_products')||'[]')}catch{return[]}}
+function setProductsDB(d){
+  // Compress imageUrl to thumbnail for product DB, limit history to 20 entries
+  Promise.all(d.map(async p=>{
+    let thumb='';
+    if(p.imageUrl){
+      if(p.imageUrl.startsWith('http')){
+        // URL — keep as-is forever, costs nothing
+        thumb=p.imageUrl;
+      } else if(p.imageUrl.startsWith('data:image')){
+        // Embedded base64 — compress to thumbnail
+        thumb=await compressImageToThumb(p.imageUrl,5000);
+      }
+    }
+    return {...p, imageUrl:thumb, history:(p.history||[]).slice(0,20)};
+  })).then(lean=>{
+    const data=JSON.stringify(lean);
+    try{
+      localStorage.setItem('icalc_products',data);
+      if(typeof fbPushProductsDB==='function')fbPushProductsDB();
+    }catch(e){
+      const minimal=lean.map(p=>({...p,imageUrl:'',history:(p.history||[]).slice(0,5)}));
+      try{localStorage.setItem('icalc_products',JSON.stringify(minimal));}catch{}
+    }
+  });
+}
+
+let pdbSelected=null; // currently viewed product in modal
+
+function updateProductsDB(snap){
+  // Called after saveQuote — upsert each product by SKU or name
+  const db=getProductsDB();
+  const date=snap.date||new Date().toISOString().split('T')[0];
+  const c=snap.currency||'PLN';
+  (snap.products||[]).forEach(p=>{
+    const r=calcForSnap(p,snap.products,snap.settings);
+    const pricePerUnit=r?r.pu:0;
+    const key=p.sku?('sku:'+p.sku):('name:'+p.name);
+    let existing=db.find(x=>x.key===key);
+    const histEntry={date,quoteName:snap.name,pricePerUnit,currency:c,qty:p.qty,priceCNY:p.priceCNY,hs:p.hs||''};
+    if(existing){
+      // Chroń pola zdefiniowane ręcznie przez użytkownika
+      if(!existing.customName) existing.name=p.name;      // nazwa z wyceny tylko jeśli nie zdefiniowano własnej
+      if(!existing.customSku && p.sku) existing.sku=p.sku; // SKU z wyceny tylko jeśli nie zdefiniowano własnego
+      existing.hs=p.hs||existing.hs;
+      // Priorytet: własny URL (http) > istniejący URL > base64 z wyceny
+      if(!existing.customImage){
+        // Brak własnego zdjęcia — aktualizuj z wyceny
+        const existingIsUrl=existing.imageUrl&&existing.imageUrl.startsWith('http');
+        if(!existingIsUrl) existing.imageUrl=p.imageUrl||existing.imageUrl;
+      }
+      // Jeśli customImage=true → NIGDY nie nadpisuj
+      existing.lastPrice=pricePerUnit;
+      existing.lastDate=date;
+      existing.currency=c;
+      // avoid duplicate same date+quote
+      if(!existing.history.find(h=>h.date===date&&h.quoteName===snap.name)){
+        existing.history.unshift(histEntry);
+      }
+    }else{
+      db.unshift({key,sku:p.sku||'',name:p.name,hs:p.hs||'',imageUrl:p.imageUrl||'',lastPrice:pricePerUnit,lastDate:date,currency:c,history:[histEntry]});
+    }
+  });
+  setProductsDB(db);
+}
+
+function calcForSnap(p,products,settings){
+  // Re-calculate cost for a snapshot product using saved settings
+  try{
+    const s=settings||{};
+    const q=Math.max(p.qty||0,1),pCNY=parseFloat(p.priceCNY)||0;
+    const r=parseFloat(s.ra)||0.57;
+    const v=parseFloat(s.cv)||(s.ct==='33'?33:s.ct==='60'?60:68);
+    const f=parseFloat(s.fr)||0;
+    // Koszty wspólne — jeśli 0 to 0 (nie fallbackuj do żadnej wartości)
+    const sh=(parseFloat(s.kc)||0)+(parseFloat(s.kp)||0)+(parseFloat(s.kl)||0)+(parseFloat(s.ki)||0)+(parseFloat(s.ko)||0);
+    // Cło: użyj cła produktu jeśli ustawione, inaczej globalne z wyceny (może być 0)
+    const dutyVal=p.duty!=null?parseFloat(p.duty):(s.du!==undefined&&s.du!==''?parseFloat(s.du):0);
+    const dr=dutyVal/100;
+    // VAT: użyj wartości z wyceny (może być 0)
+    const vatVal=s.va!==undefined&&s.va!==''?parseFloat(s.va):0;
+    const vr=vatVal/100;
+    const cbm=parseFloat(p.cbm)||0;
+    const scn=parseFloat(p.shipCN)||0;
+    const fpm=v>0?f/v:0,frs=cbm*fpm,pv=q*pCNY*r;
+    const tc=products.reduce((a,x)=>a+(parseFloat(x.cbm)||0),0);
+    const share=tc>0?cbm/tc:0;
+    const cif=pv+scn+frs,da=cif*dr,va2=(cif+da)*vr;
+    const tot=cif+sh*share+da+va2+(parseFloat(p.extraCosts)||0);
+    return{pu:tot/q};
+  }catch{return null;}
+}
+
+function renderProductsDB(){
+  const db=getProductsDB();
+  const q=(g('pdb-q')&&g('pdb-q').value||'').toLowerCase().trim();
+  const filtered=q?db.filter(p=>p.name.toLowerCase().includes(q)||(p.sku||'').toLowerCase().includes(q)):db;
+  const el=g('pdb-content');
+  if(!el)return;
+  if(!filtered.length){
+    el.innerHTML=`<div style="text-align:center;padding:50px 20px;color:var(--color-text-secondary,#6b6b6b);font-size:13px">
+      <div style="font-size:36px;margin-bottom:12px">📦</div>
+      ${db.length===0?'Brak produktów w bazie.<br><span style="font-size:11px">Produkty trafiają tu automatycznie po zapisaniu wyceny.</span>':'Brak wyników dla &ldquo;<strong>'+escHtml(q)+'</strong>&rdquo;'}
+    </div>`;
+    return;
+  }
+  el.innerHTML='<div class="pdb-grid">'+filtered.map(p=>{
+    const hist=p.history||[];
+    const prev=hist.length>1?hist[1]:null;
+    let diffHtml='';
+    if(prev){
+      const d=p.lastPrice-prev.pricePerUnit,pct=prev.pricePerUnit>0?d/prev.pricePerUnit*100:0;
+      diffHtml=`<span class="pdb-hist-diff ${d>0?'diff-up':'diff-dn'}">${d>0?'▲':'▼'} ${Math.abs(pct).toFixed(1)}%</span>`;
+    }
+    const img=p.imageUrl
+      ?`<img src="${escHtml(p.imageUrl)}" style="width:100%;height:160px;object-fit:cover;display:block" onerror="this.parentElement.innerHTML='<span style=\'font-size:36px\'>📦</span>'">`
+      :'<span style="font-size:36px">📦</span>';
+    return`<div class="pdb-card" data-pkey="${escHtml(p.key)}" onclick="openPdbModal(this.dataset.pkey)">
+      <div class="pdb-card-img">${img}</div>
+      ${p.imageUrl&&p.imageUrl.startsWith('http')?'<div style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,.55);color:white;font-size:9px;padding:2px 6px;border-radius:10px">📌 własne</div>':''}
+      <div class="pdb-card-body">
+        ${p.sku?`<div class="pdb-sku">${escHtml(p.sku)}</div>`:''}
+        <div class="pdb-name">${escHtml(p.name)}</div>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <div class="pdb-price">${p.lastPrice.toFixed(2)} ${p.currency||'PLN'}/szt.</div>
+          ${diffHtml}
+        </div>
+        <div class="pdb-meta">
+          ${p.hs?`<span style="font-family:monospace;font-size:9px;color:var(--blue)">${escHtml(p.hs)}</span> · `:''}
+          ${hist.length} wycen${hist.length===1?'a':hist.length<5?'y':''}
+          · ostatnia: ${escHtml(p.lastDate||'')}
+        </div>
+      </div>
+    </div>`;
+  }).join('')+'</div>';
+}
+
+function openPdbModal(key){
+  const db=getProductsDB();
+  const p=db.find(x=>x.key===key);
+  if(!p)return;
+  pdbSelected=p;
+  g('pdb-modal-name').textContent=p.name;
+  g('pdb-modal-sku').textContent=p.sku?('SKU: '+p.sku):(p.hs?'HS: '+p.hs:'');
+  const hist=p.history||[];
+  const maxP=hist.length?Math.max(...hist.map(h=>h.pricePerUnit)):1;
+  g('pdb-modal-body').innerHTML=`
+    <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap">
+      ${p.imageUrl?`<img src="${escHtml(p.imageUrl)}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:.5px solid #e0dedd;flex-shrink:0" onerror="this.style.display='none'">`:''}
+      <div style="flex:1;min-width:200px">
+        <div style="font-size:22px;font-weight:700;color:var(--or);margin-bottom:2px">${p.lastPrice.toFixed(2)} ${p.currency||'PLN'}<span style="font-size:12px;font-weight:400">/szt.</span></div>
+        <div style="font-size:10px;color:var(--color-text-secondary,#6b6b6b);margin-bottom:8px">cena z ostatniej wyceny · może różnić się od bieżącego kalkulatora</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+          <div>
+            <div style="font-size:9px;font-weight:600;color:var(--color-text-secondary,#6b6b6b);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">Nazwa</div>
+            <input id="pdb-edit-name" value="${escHtml(p.name)}" style="width:100%;height:27px;font-size:11px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:5px;padding:0 7px;background:var(--color-background-secondary,#f5f4f1)">
+          </div>
+          <div>
+            <div style="font-size:9px;font-weight:600;color:var(--color-text-secondary,#6b6b6b);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">SKU</div>
+            <input id="pdb-edit-sku" value="${escHtml(p.sku||'')}" placeholder="np. ABC-001" style="width:100%;height:27px;font-size:11px;font-family:monospace;border:.5px solid var(--color-border-secondary,#ccc);border-radius:5px;padding:0 7px;background:var(--color-background-secondary,#f5f4f1)">
+          </div>
+          <div>
+            <div style="font-size:9px;font-weight:600;color:var(--color-text-secondary,#6b6b6b);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">Kod HS 🇨🇳</div>
+            <input id="pdb-edit-hs" value="${escHtml(p.hs||'')}" placeholder="np. 9403.20" style="width:100%;height:27px;font-size:11px;font-family:monospace;border:.5px solid var(--color-border-secondary,#ccc);border-radius:5px;padding:0 7px;background:var(--color-background-secondary,#f5f4f1)">
+          </div>
+          <div>
+            <div style="font-size:9px;font-weight:600;color:var(--color-text-secondary,#6b6b6b);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">Cło CN 🇨🇳 %</div>
+            <input id="pdb-edit-duty" type="number" value="${p.duty!=null?p.duty:''}" placeholder="np. 6.5" min="0" max="200" step="0.1" style="width:100%;height:27px;font-size:11px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:5px;padding:0 7px;background:var(--color-background-secondary,#f5f4f1)">
+          </div>
+        </div>
+        <div style="margin-bottom:10px">
+          <div style="font-size:9px;font-weight:600;color:var(--color-text-secondary,#6b6b6b);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">Zdjęcie produktu</div>
+          <div style="display:flex;gap:7px;align-items:center">
+            <div id="pdb-img-preview" style="width:48px;height:48px;border-radius:6px;border:.5px solid var(--color-border-secondary,#ccc);overflow:hidden;flex-shrink:0;background:var(--color-background-secondary,#f5f4f1);display:flex;align-items:center;justify-content:center;font-size:20px">
+              ${p.imageUrl?`<img src="${escHtml(p.imageUrl)}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.innerHTML='📦'">`:'📦'}
+            </div>
+            <div style="flex:1">
+              <input id="pdb-edit-img" value="${escHtml(p.imageUrl&&p.imageUrl.startsWith('http')?p.imageUrl:'')}" placeholder="Wklej URL zdjęcia… https://…" oninput="previewPdbImg(this.value)" style="width:100%;height:27px;font-size:11px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:5px;padding:0 7px;background:var(--color-background-secondary,#f5f4f1)">
+              <div style="font-size:9px;color:var(--color-text-secondary,#6b6b6b);margin-top:3px">Wklej link do zdjęcia (https://…) — będzie zapisany na stałe przy produkcie</div>
+            </div>
+          </div>
+        </div>
+        <button id="pdb-save-btn" onclick="savePdbEdits(pdbSelected&&pdbSelected.key)" style="height:28px;padding:0 14px;font-size:11px;border:none;border-radius:6px;cursor:pointer;font-weight:500;background:var(--or);color:white">💾 Zapisz zmiany</button>
+        <span id="pdb-edit-saved" style="display:none;font-size:10px;color:var(--green);margin-left:8px">✓ Zapisano</span>
+      </div>
+    </div>
+    <div style="font-size:11px;font-weight:600;margin-bottom:8px;color:var(--color-text-secondary,#6b6b6b);text-transform:uppercase;letter-spacing:.06em">Historia cen</div>
+    ${hist.map((h,i)=>{
+      const prev=hist[i+1];
+      let diffHtml='';
+      if(prev){const d=h.pricePerUnit-prev.pricePerUnit,pct=prev.pricePerUnit>0?d/prev.pricePerUnit*100:0;diffHtml=`<span class="pdb-hist-diff ${d>0?'diff-up':'diff-dn'}" style="margin-left:6px">${d>0?'▲':'▼'} ${Math.abs(pct).toFixed(1)}%</span>`;}
+      const barW=maxP>0?Math.round(h.pricePerUnit/maxP*100):0;
+      const rateInfo=h.priceCNY?` · ¥${h.priceCNY}/szt.`:'';
+      return`<div class="pdb-hist-row" style="padding:8px 0;display:grid;grid-template-columns:90px 1fr auto;align-items:center;gap:8px;border-bottom:.5px solid var(--color-border-tertiary,#e0dedd)">
+        <div>
+          <div class="pdb-hist-date">${escHtml(h.date)}</div>
+          <div style="font-size:9px;color:var(--color-text-secondary,#6b6b6b);margin-top:1px">wycena: <em>${escHtml(h.quoteName||'—')}</em></div>
+        </div>
+        <div>
+          <div style="height:5px;background:var(--color-border-tertiary,#e0dedd);border-radius:3px;overflow:hidden;margin-bottom:3px"><div style="height:100%;width:${barW}%;background:var(--or);border-radius:3px"></div></div>
+          <div style="font-size:10px;color:var(--color-text-secondary,#6b6b6b)">${h.qty||'?'} szt.${rateInfo}</div>
+        </div>
+        <div style="text-align:right;white-space:nowrap">
+          <span class="pdb-hist-price">${h.pricePerUnit.toFixed(2)} ${p.currency||'PLN'}</span>${diffHtml}
+        </div>
+      </div>`;
+    }).join('')}
+    <div style="margin-top:14px;display:flex;gap:7px;flex-wrap:wrap">
+      <button onclick="deletePdbProduct(pdbSelected&&pdbSelected.key)" style="height:28px;padding:0 12px;font-size:11px;border:.5px solid var(--red);color:var(--red);border-radius:6px;cursor:pointer;background:transparent">🗑 Usuń produkt</button>
+    </div>`;
+  g('pdb-modal').classList.add('on');
+}
+
+function closePdbModal(){g('pdb-modal').classList.remove('on');pdbSelected=null;}
+
+function previewPdbImg(url){
+  const preview=document.getElementById('pdb-img-preview');
+  if(!preview)return;
+  url=(url||'').trim();
+  if(url.startsWith('http')){
+    preview.innerHTML=`<img src="${escHtml(url)}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.innerHTML='❌'">`;
+  } else {
+    preview.innerHTML='📦';
+  }
+}
+
+function savePdbEdits(key){
+  const db=getProductsDB();
+  const p=db.find(x=>x.key===key);
+  if(!p)return;
+  const newName=(g('pdb-edit-name').value||'').trim()||p.name;
+  const newSku=(g('pdb-edit-sku').value||'').trim();
+  const newHs=(g('pdb-edit-hs').value||'').trim();
+  const newDuty=g('pdb-edit-duty').value!==''?parseFloat(g('pdb-edit-duty').value):null;
+  // Image: prefer manually entered URL, fallback to existing
+  const imgInput=(g('pdb-edit-img').value||'').trim();
+  const newImg=imgInput.startsWith('http')?imgInput:(p.imageUrl||'');
+  // Update key if SKU changed
+  const oldKey=p.key;
+  const newKey=newSku?('sku:'+newSku):('name:'+newName);
+  p.name=newName;
+  p.sku=newSku;
+  p.hs=newHs;
+  p.duty=newDuty;
+  p.imageUrl=newImg;
+  // Oznacz że nazwa/SKU są własne użytkownika — nie nadpisuj przy kolejnych wycenach
+  if(newName!==pdbSelected.name) p.customName=true;
+  if(newSku&&newSku!==pdbSelected.sku) p.customSku=true;
+  if(newImg&&newImg.startsWith('http')) p.customImage=true;
+  if(newKey!==oldKey){p.key=newKey;}
+  setProductsDB(db);
+  // Update header in modal
+  g('pdb-modal-name').textContent=newName;
+  g('pdb-modal-sku').textContent=newSku?('SKU: '+newSku):(newHs?'HS: '+newHs:'');
+  // Update ps[] in current session
+  ps.forEach(prod=>{
+    const match=(pdbSelected.sku&&prod.sku===pdbSelected.sku)||(prod.name===pdbSelected.name);
+    if(match){prod.name=newName;prod.sku=newSku;prod.hs=newHs;if(newDuty!==null)prod.duty=newDuty;if(newImg)prod.imageUrl=newImg;}
+  });
+  pdbSelected={...pdbSelected,...p};
+  rc();
+  // Also save to hsDB if HS code provided
+  if(newHs&&newDuty!==null){
+    if(!hsDB.find(h=>h.code===newHs)){
+      hsDB.unshift({id:Date.now(),code:newHs,name:newName,duty:newDuty,note:'Z bazy produktów',source:'products'});
+      saveHSDB();
+    }
+  }
+  const savedEl=g('pdb-edit-saved');
+  if(savedEl){savedEl.style.display='inline';setTimeout(()=>savedEl.style.display='none',2000);}
+  renderProductsDB();
+}
+
+function loadProductToCalc(){
+  // Load last quote of this product into calculator
+  if(!pdbSelected)return;
+  const hist=pdbSelected.history||[];
+  if(!hist.length){closePdbModal();return;}
+  const qname=hist[0].quoteName;
+  const quotes=getQuotes();
+  const snap=quotes.find(q=>q.name===qname);
+  if(snap){loadQuote(snap.id);}
+  closePdbModal();
+}
+
+function deletePdbProduct(key){
+  if(!confirm('Usunąć ten produkt z bazy?'))return;
+  const db=getProductsDB().filter(p=>p.key!==key);
+  setProductsDB(db);
+  if(typeof fbRemoveProductDB==='function')fbRemoveProductDB(key);
+  closePdbModal();
+  renderProductsDB();
+}
+
+function exportProductsCSV(){
+  const db=getProductsDB();
+  if(!db.length){alert('Baza produktów jest pusta.');return;}
+  const rows=[['SKU','Nazwa','Kod HS','Ostatnia cena','Waluta','Ostatni import','Liczba wycen']];
+  db.forEach(p=>rows.push([p.sku||'',p.name,p.hs||'',p.lastPrice.toFixed(2),p.currency||'PLN',p.lastDate||'',p.history?p.history.length:0]));
+  const csv=rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='produkty_'+new Date().toISOString().split('T')[0]+'.csv';a.click();
+}
+
+// ═══ STORAGE HELPERS ═══
+function updateStorageBar(){
+  const used=lsUsedKB(),total=5000;
+  const pct=Math.min(100,Math.round(used/total*100));
+  const bar=document.getElementById('storage-bar');
+  const lbl=document.getElementById('storage-bar-label');
+  if(bar){bar.style.width=pct+'%';bar.style.background=pct>80?'#E24B4A':pct>60?'#BA7517':'#1D9E75';}
+  if(lbl)lbl.textContent=used+' / 5000 KB ('+pct+'%)';
+  // Ostrzeżenie przy >80%
+  if(pct>80){
+    const warn=document.getElementById('storage-warn-bar');
+    if(!warn){
+      const el=document.createElement('div');
+      el.id='storage-warn-bar';
+      el.style.cssText='font-size:9px;color:#E24B4A;margin-top:2px';
+      el.textContent='⚠️ Mało miejsca! Wyczyść stare wyceny.';
+      const barWrap=document.getElementById('storage-bar-wrap');
+      if(barWrap)barWrap.appendChild(el);
+    }
+  }
+}
+
+// ═══ PDF EXPORT ═══
+async function exportPDF(){
+  if(!ps.length){alert('Dodaj produkty przed eksportem PDF.');return;}
+  if(typeof window.jspdf==='undefined'){alert('Biblioteka PDF nie jest jeszcze załadowana. Spróbuj za chwilę.');return;}
+
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+  const c=cur();
+  const pageW=doc.internal.pageSize.getWidth();
+  const pageH=doc.internal.pageSize.getHeight();
+  const red=[226,34,26];
+  const dark=[30,30,30];
+  const gray=[120,120,120];
+  const lightgray=[245,245,245];
+
+  // ─── HEADER ───
+  doc.setFillColor(...red);
+  doc.rect(0,0,pageW,22,'F');
+  doc.setTextColor(255,255,255);
+  doc.setFontSize(16);
+  doc.setFont('helvetica','bold');
+  doc.text('DIONIZOS TRADE',12,10);
+  doc.setFontSize(9);
+  doc.setFont('helvetica','normal');
+  doc.text('Kalkulator Importu — Wycena',12,16);
+
+  // Quote name + date
+  const qname=(document.getElementById('qname')&&document.getElementById('qname').value)||'Wycena';
+  const qdate=(document.getElementById('qd')&&document.getElementById('qd').value)||new Date().toISOString().split('T')[0];
+  doc.setFontSize(10);
+  doc.setFont('helvetica','bold');
+  doc.text(qname,pageW-12,10,{align:'right'});
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(8);
+  doc.text('Data: '+qdate,pageW-12,16,{align:'right'});
+
+  // ─── PRODUCTS TABLE ───
+  const tableY=26;
+  const rows=[];
+  const imagePromises=[];
+
+  for(let i=0;i<ps.length;i++){
+    const p=ps[i];
+    const r=calc(p,ps);
+    rows.push([
+      (p.sku||String(i+1)),
+      p.name||(''+(i+1)),
+      (p.qty||0).toString(),
+      (parseFloat(p.cbm)||0).toFixed(3),
+      {content:r.pu.toFixed(2)+' '+c,styles:{textColor:red,fontStyle:'bold'}},
+    ]);
+  }
+
+  // Summary row
+  const totalImport=ps.reduce((s,p)=>s+calc(p,ps).tot,0);
+  rows.push([
+    {content:'RAZEM',colSpan:4,styles:{fontStyle:'bold',fillColor:red,textColor:[255,255,255]}},
+    {content:totalImport.toFixed(0)+' '+c,styles:{fontStyle:'bold',fillColor:red,textColor:[255,255,255]}},
+  ]);
+
+  doc.autoTable({
+    startY:tableY,
+    head:[[
+      {content:'SKU',styles:{halign:'center'}},
+      'Produkt',
+      {content:'Ilość',styles:{halign:'right'}},
+      {content:'CBM',styles:{halign:'right'}},
+      {content:'Koszt/szt.',styles:{halign:'right'}},
+    ]],
+    body:rows,
+    theme:'grid',
+    margin:{left:8,right:8},
+    headStyles:{fillColor:red,textColor:[255,255,255],fontSize:7,fontStyle:'bold',cellPadding:2},
+    bodyStyles:{fontSize:7,cellPadding:2},
+    alternateRowStyles:{fillColor:lightgray},
+    columnStyles:{
+      0:{halign:'center',cellWidth:22},
+      1:{cellWidth:130},
+      2:{halign:'right',cellWidth:20},
+      3:{halign:'right',cellWidth:20},
+      4:{halign:'right',cellWidth:35},
+    },
+    didDrawPage:(data)=>{
+      // Footer on each page
+      const pg=doc.internal.getCurrentPageInfo().pageNumber;
+      const total=doc.internal.getNumberOfPages();
+      doc.setFontSize(7);
+      doc.setTextColor(...gray);
+      doc.setFont('helvetica','normal');
+      doc.text('DIONIZOS TRADE — Kalkulator Importu',8,pageH-4);
+      doc.text('Strona '+pg+' / '+total,pageW-8,pageH-4,{align:'right'});
+      doc.text('Wygenerowano: '+new Date().toLocaleString('pl-PL'),pageW/2,pageH-4,{align:'center'});
+    },
+    willDrawCell:(data)=>{
+      // Add image in separate pass if product has image - skip for now, too complex in autoTable
+    }
+  });
+
+  // ─── SAVE ───
+  const fname='DIONIZOS_TRADE_wycena_'+qdate+'.pdf';
+  doc.save(fname);
+  showStorageWarning('✅ PDF zapisany: '+fname);
+}
+
+// ═══ BACKUP / RESTORE ═══
+function exportAllDataJSON(){
+  const backup={
+    version:12,
+    exportDate:new Date().toISOString(),
+    appName:'Import Kalkulator',
+    data:{
+      quotes:    getQuotes(),
+      products:  getProductsDB(),
+      hsDB:      hsDB,
+    }
+  };
+  const json=JSON.stringify(backup,null,2);
+  const blob=new Blob([json],{type:'application/json;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  const date=new Date().toISOString().split('T')[0];
+  a.download='import_kalkulator_backup_'+date+'.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showStorageWarning('✅ Backup zapisany: import_kalkulator_backup_'+date+'.json');
+}
+
+function importAllDataJSON(event){
+  const file=event.target.files[0];
+  if(!file)return;
+  if(!confirm('Import zastąpi WSZYSTKIE obecne dane (wyceny, produkty, baza HS). Kontynuować?')){
+    event.target.value='';return;
+  }
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const backup=JSON.parse(e.target.result);
+      if(!backup.data||!backup.appName){
+        alert('Nieprawidłowy plik backup. Wybierz plik .json pobrany z tej aplikacji.');
+        return;
+      }
+      // Restore quotes
+      if(Array.isArray(backup.data.quotes)){
+        localStorage.setItem('icalc_quotes',JSON.stringify(backup.data.quotes));
+      }
+      // Restore products
+      if(Array.isArray(backup.data.products)){
+        localStorage.setItem('icalc_products',JSON.stringify(backup.data.products));
+      }
+      // Restore HS DB
+      if(Array.isArray(backup.data.hsDB)){
+        hsDB=backup.data.hsDB;
+        saveHSDB();
+      }
+      // Refresh UI
+      updateStorageBar();
+      renderQuotes();
+      renderProductsDB&&renderProductsDB();
+      renderHS();
+      const qCount=(backup.data.quotes||[]).length;
+      const pCount=(backup.data.products||[]).length;
+      const hCount=(backup.data.hsDB||[]).length;
+      showStorageWarning('✅ Import zakończony: '+qCount+' wycen, '+pCount+' produktów, '+hCount+' kodów HS. Eksport z: '+(backup.exportDate||'?').split('T')[0]);
+    }catch(err){
+      alert('Błąd importu: '+err.message);
+    }
+    event.target.value='';
+  };
+  reader.readAsText(file,'utf-8');
+}
+
+function compactStorage(){
+  // Usuń duplikaty wycen, ogranicz historię produktów
+  const quotes=getQuotes();
+  const seen=new Set();
+  const unique=quotes.filter(q=>{if(seen.has(q.name+q.date)){return false;}seen.add(q.name+q.date);return true;});
+  if(unique.length<quotes.length){
+    localStorage.setItem('icalc_quotes',JSON.stringify(unique));
+    showStorageWarning('Usunięto '+( quotes.length-unique.length)+' zduplikowanych wycen.');
+  }
+  updateStorageBar();
+}
+
+function clearAllStorage(){
+  if(!confirm('Usunąć WSZYSTKIE zapisane wyceny i produkty?\nBaza kodów HS zostanie zachowana.'))return;
+  localStorage.removeItem('icalc_quotes');
+  localStorage.removeItem('icalc_products');
+  updateStorageBar();
+  renderQuotes();
+  renderProductsDB&&renderProductsDB();
+  showStorageWarning('Wyczyszczono wyceny i produkty. Baza HS zachowana.');
+}
+
+function clearOldQuotes(keepN){
+  const q=getQuotes().slice(0,keepN||10);
+  setQuotes(q);
+  updateStorageBar();
+}
+
+// ═══ FIREBASE REALTIME SYNC ═══
+let fbConfig=null, fbWorkspace='', fbDb=null, _fbListeners=[], _fbPushTimer=null, _fbApplying=false, _fbConnected=false, _fbInitialCalcSeen=false;
+const FB_CFG_KEY='firebase_config_v1', FB_WS_KEY='firebase_workspace_v1';
+// Domyślna konfiguracja Firebase z Twojego projektu.
+// Możesz ją później zmienić w panelu 🔥 Firebase Sync.
+const DEFAULT_FIREBASE_CONFIG={
+  apiKey:'AIzaSyCokX5Bar57DxLbSiH6ElXTxSTuL5j1how',
+  authDomain:'importy-d7a57.firebaseapp.com',
+  databaseURL:'https://importy-d7a57-default-rtdb.europe-west1.firebasedatabase.app',
+  projectId:'importy-d7a57',
+  storageBucket:'importy-d7a57.firebasestorage.app',
+  messagingSenderId:'895211374905',
+  appId:'1:895211374905:web:3d5d751bdccd76f4f8d00e8',
+  measurementId:'G-6N9TTQ5XSM'
+};
+const DEFAULT_FIREBASE_WORKSPACE='dionizos';
+
+function _safeKey(v){return String(v||'').trim().replace(/[.#$\/[\]]/g,'_').slice(0,120)||('id_'+Date.now());}
+function _tsNow(){ return new Date().toISOString(); }
+function _newId(prefix='id'){return prefix+'_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);}
+function ensurePSIds(){ps.forEach(p=>{if(!p._id)p._id=_newId('calc');});}
+function _quoteKey(q){return _safeKey(q.id||q.name||_newId('quote'));}
+function _productKey(p){return _safeKey(p.key||(p.sku?'sku:'+p.sku:'prod_'+(p.id||p.name||_newId('p'))));}
+function _hsKey(h){return _safeKey(h.code||h.id||_newId('hs'));}
+function _calcKey(p){return _safeKey(p._id||(p.sku?'sku_'+p.sku:_newId('calc')));}
+function fbRoot(path=''){return fbDb.ref('workspaces/'+_safeKey(fbWorkspace)+(path?'/'+path:''));}
+function fbIsReady(){return !!(fbDb&&fbWorkspace);}
+function _arrFromSnap(snap){const v=snap.val()||{};return Object.entries(v).map(([key,val])=>({...val,_fbKey:key}));}
+function _newer(a,b){return String((a&&a._updatedAt)||'')>String((b&&b._updatedAt)||'');}
+function _stamp(obj){return {...obj,_updatedAt:_tsNow(),_updatedBy:fbWorkspace};}
+
+function fbReadLocalConfig(){try{return JSON.parse(localStorage.getItem(FB_CFG_KEY)||'null')}catch{return null}}
+function fbSaveLocalConfig(cfg,ws){localStorage.setItem(FB_CFG_KEY,JSON.stringify(cfg));localStorage.setItem(FB_WS_KEY,ws||'dionizos');}
+function fbClearLocalConfig(){localStorage.removeItem(FB_CFG_KEY);localStorage.removeItem(FB_WS_KEY);}
+
+async function initFirebase(cfg,workspace){
+  if(!window.firebase)throw new Error('Biblioteka Firebase nie została załadowana. Sprawdź internet/CDN.');
+  fbConfig=cfg;fbWorkspace=workspace||DEFAULT_FIREBASE_WORKSPACE||'dionizos';
+  let app;
+  // Używamy domyślnej aplikacji Firebase, żeby .info/connected i database działały stabilnie także z pliku HTML.
+  try{app=firebase.app();}catch{app=firebase.initializeApp(cfg);}
+  fbDb=firebase.database(app);
+  return fbDb;
+}
+
+function fbSettingsSnapshot(){return {ct:g('ct').value,cv:gn('cv'),fr:gn('fr'),cu:cur(),ra:rate(),kc:gn('kc'),kp:gn('kp'),kl:gn('kl'),ki:gn('ki'),ko:gn('ko'),du:getDuty(),va:getVAT(),splitMode,shipCNisCNY,_updatedAt:_tsNow(),_updatedBy:fbWorkspace};}
+function fbApplySettings(st){
+  if(!st)return;
+  _fbApplying=true;
+  try{
+    ['ct','cv','fr','cu','ra','kc','kp','kl','ki','ko','du','va'].forEach(k=>{if(st[k]!==undefined&&g(k))g(k).value=st[k];});
+    splitMode=st.splitMode||splitMode; shipCNisCNY=st.shipCNisCNY!==false;
+    ss(splitMode); setShipCur(shipCNisCNY?'CNY':'LOCAL');
+  }finally{_fbApplying=false;}
+}
+
+function mergeArrayByKey(local, remote, keyFn){
+  const map={};
+  (local||[]).forEach(x=>{map[keyFn(x)]=x;});
+  (remote||[]).forEach(x=>{const k=keyFn(x); if(!map[k]||_newer(x,map[k]))map[k]=x;});
+  return Object.values(map);
+}
+
+async function fbPushQuotes(){if(!fbIsReady()||_fbApplying)return;const updates={};getQuotes().forEach(q=>updates[_quoteKey(q)] = _stamp(q));return fbRoot('quotes').update(updates);}
+async function fbPushProductsDB(){if(!fbIsReady()||_fbApplying)return;const updates={};getProductsDB().forEach(p=>updates[_productKey(p)] = _stamp(p));return fbRoot('products').update(updates);}
+async function fbPushHSDB(){if(!fbIsReady()||_fbApplying)return;const updates={};hsDB.forEach(h=>updates[_hsKey(h)] = _stamp(h));return fbRoot('hsdb').update(updates);}
+async function fbPushCalcState(){
+  if(!fbIsReady()||_fbApplying)return;
+  ensurePSIds();
+  const updates={};
+  ps.forEach(p=>{updates['calc/products/'+_calcKey(p)] = _stamp(p);});
+  updates['calc/settings']=fbSettingsSnapshot();
+  return fbRoot().update(updates);
+}
+
+async function sbPushSilent(){
+  if(!fbIsReady())return;
+  try{
+    await Promise.all([fbPushQuotes(),fbPushProductsDB(),fbPushHSDB(),fbPushCalcState()]);
+    _sbSetDot(true,'Sync OK · '+new Date().toLocaleTimeString('pl-PL'));
+  }catch(e){console.warn('Firebase push error',e);_sbSetDot(false,'Błąd zapisu Firebase: '+(e.message||e));}
+}
+
+function sbAutoTrigger(){
+  if(!fbIsReady()||_fbApplying)return;
+  clearTimeout(_fbPushTimer);
+  ensurePSIds();
+  ps.forEach(p=>{p._updatedAt=_tsNow();p._updatedBy=fbWorkspace;});
+  _sbSetSyncIcon('⏳');
+  _fbPushTimer=setTimeout(async()=>{_sbSetSyncIcon('↑');await fbPushCalcState();_sbSetSyncIcon('✓');setTimeout(()=>_sbSetSyncIcon(''),1800);},700);
+}
+
+function _sbSetSyncIcon(icon){
+  let el=document.getElementById('sb-topbar-icon');
+  if(!el){el=document.createElement('span');el.id='sb-topbar-icon';el.style.cssText='font-size:10px;color:rgba(255,255,255,.85);margin-left:4px;vertical-align:middle';const p=document.querySelector('.topbar p');if(p)p.appendChild(el);}
+  el.textContent=icon?(' '+icon):'';
+}
+
+function fbApplyQuotes(remote){
+  _fbApplying=true;
+  try{const merged=mergeArrayByKey(getQuotes(),remote,_quoteKey).sort((a,b)=>(b.id||0)-(a.id||0));localStorage.setItem('icalc_quotes',JSON.stringify(merged));renderQuotes&&renderQuotes();updateStorageBar&&updateStorageBar();}
+  catch(e){console.warn(e)}finally{_fbApplying=false;}
+}
+function fbApplyProducts(remote){
+  _fbApplying=true;
+  try{const merged=mergeArrayByKey(getProductsDB(),remote,_productKey);localStorage.setItem('icalc_products',JSON.stringify(merged));renderProductsDB&&renderProductsDB();updateStorageBar&&updateStorageBar();}
+  catch(e){console.warn(e)}finally{_fbApplying=false;}
+}
+function fbApplyHS(remote){
+  _fbApplying=true;
+  try{hsDB=mergeArrayByKey(hsDB,remote,_hsKey);localStorage.setItem('icalc_hsdb',JSON.stringify(hsDB));renderHS&&renderHS();}
+  catch(e){console.warn(e)}finally{_fbApplying=false;}
+}
+function fbApplyCalcProducts(remote){
+  _fbApplying=true;
+  try{
+    ensurePSIds();
+    const localMap={};ps.forEach(p=>localMap[_calcKey(p)]=p);
+    const rkeys=new Set();
+    remote.forEach(rp=>{const k=_calcKey(rp);rkeys.add(k);if(!localMap[k]){ps.push(rp);}else if(_newer(rp,localMap[k])){Object.assign(localMap[k],rp);}});
+    // Usuń lokalnie tylko te pozycje, których nie ma już w Firebase i mają _id
+    ps=ps.filter(p=>!p._id||rkeys.has(_calcKey(p)));
+    rc();
+  }catch(e){console.warn(e)}finally{_fbApplying=false;}
+}
+
+function fbStartRealtime(){
+  if(!fbIsReady())return;
+  fbStopRealtime();
+  _fbInitialCalcSeen=false;
+  const bind=(path,cb)=>{const r=fbRoot(path);r.on('value',snap=>{cb(snap);_sbSetDot(true,'Live · '+new Date().toLocaleTimeString('pl-PL'));});_fbListeners.push([r,'value']);};
+  bind('quotes',snap=>fbApplyQuotes(_arrFromSnap(snap)));
+  bind('products',snap=>fbApplyProducts(_arrFromSnap(snap)));
+  bind('hsdb',snap=>fbApplyHS(_arrFromSnap(snap)));
+  bind('calc/products',snap=>{
+    const remote=_arrFromSnap(snap);
+    // Przy pierwszym połączeniu z pustą bazą Firebase nie kasujemy lokalnych produktów.
+    // Najpierw wysyłamy lokalny stan, a dopiero kolejne puste snapshoty traktujemy jako usunięcie.
+    if(!_fbInitialCalcSeen){
+      _fbInitialCalcSeen=true;
+      if(remote.length===0 && Array.isArray(ps) && ps.length>0){
+        setTimeout(()=>fbPushCalcState(),250);
+        return;
+      }
+    }
+    fbApplyCalcProducts(remote);
+  });
+  bind('calc/settings',snap=>{const v=snap.val(); if(v&&v._updatedBy!==fbWorkspace)fbApplySettings(v);});
+  const infoRef=fbDb.ref('.info/connected');
+  infoRef.on('value',snap=>{_fbConnected=!!snap.val();_sbSetDot(_fbConnected,_fbConnected?'Połączono z Firebase':'Offline / brak połączenia');});
+  _fbListeners.push([infoRef,'value']);
+}
+function fbStopRealtime(){_fbListeners.forEach(([r,e])=>{try{r.off(e)}catch{}});_fbListeners=[];}
+function sbStartPolling(){fbStartRealtime();}
+function sbStopPolling(){fbStopRealtime();}
+
+function _sbShowSyncToast(msg){
+  let t=document.getElementById('sb-sync-toast');
+  if(!t){t=document.createElement('div');t.id='sb-sync-toast';t.style.cssText='position:fixed;top:54px;right:12px;background:#1D9E75;color:white;padding:8px 14px;border-radius:8px;font-size:11px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.2);transition:opacity .4s;pointer-events:none';document.body.appendChild(t);}
+  t.textContent=msg;t.style.opacity='1';clearTimeout(t._hide);t._hide=setTimeout(()=>t.style.opacity='0',2500);
+}
+function _sbSetDot(ok,msg){
+  const dot=document.getElementById('sb-rt-dot');const txt=document.getElementById('sb-rt-text');const st=document.getElementById('sb-sync-status');
+  if(dot)dot.style.background=ok?'#1D9E75':'#E24B4A';if(txt)txt.textContent=ok?'Sync aktywny':'Brak połączenia';if(st&&msg)st.textContent=msg;
+}
+function _sbSetStatus(msg){const st=document.getElementById('sb-sync-status');if(st)st.textContent=msg;}
+function updateSbSyncStatus(msg,ok){_sbSetDot(ok===true,msg);}
+function updateMobSettingsDot(){const dot=document.getElementById('mob-settings-dot');if(dot)dot.classList.toggle('on',fbIsReady());}
+
+function openSupabaseModal(){
+  const cfg=fbReadLocalConfig(); const ws=localStorage.getItem(FB_WS_KEY)||'';
+  if(cfg&&ws){showSupabaseConnected();}
+  else{
+    const c=cfg||DEFAULT_FIREBASE_CONFIG;
+    if(c){document.getElementById('sb-api-input').value=c.apiKey||'';document.getElementById('sb-auth-input').value=c.authDomain||'';document.getElementById('sb-db-input').value=c.databaseURL||'';document.getElementById('sb-project-input').value=c.projectId||'';document.getElementById('sb-appid-input').value=c.appId||'';}
+    document.getElementById('sb-email-input').value=ws||DEFAULT_FIREBASE_WORKSPACE||'dionizos';
+    document.getElementById('supabase-setup-section').style.display='block';document.getElementById('supabase-connected-section').style.display='none';
+  }
+  g('supabase-modal').classList.add('on');
+}
+function closeSupabaseModal(){g('supabase-modal').classList.remove('on');}
+async function connectSupabase(){
+  const cfg={
+    apiKey:(document.getElementById('sb-api-input').value||'').trim(),
+    authDomain:(document.getElementById('sb-auth-input').value||'').trim(),
+    databaseURL:(document.getElementById('sb-db-input').value||'').trim().replace(/\/+$/,''),
+    projectId:(document.getElementById('sb-project-input').value||'').trim(),
+    appId:(document.getElementById('sb-appid-input').value||'').trim()
+  };
+  const ws=(document.getElementById('sb-email-input').value||'dionizos').trim();
+  const status=document.getElementById('sb-connect-status');
+  if(!cfg.apiKey||!cfg.authDomain||!cfg.databaseURL||!cfg.projectId||!cfg.appId||!ws){status.innerHTML='<span style="color:var(--red)">Uzupełnij wszystkie pola Firebase.</span>';return;}
+  status.innerHTML='<span style="color:var(--color-text-secondary,#6b6b6b)">Łączę z Firebase…</span>';
+  try{
+    await initFirebase(cfg,ws);
+    fbSaveLocalConfig(cfg,ws);
+    status.innerHTML='<span style="color:#1D9E75">✓ Połączono. Wysyłam lokalne dane…</span>';
+    showSupabaseConnected();fbStartRealtime();await sbPushSilent();updateMobSettingsDot();
+  }catch(e){console.warn(e);status.innerHTML='<span style="color:var(--red)">❌ Błąd Firebase: '+escHtml(e.message||String(e))+'</span>';}
+}
+function showSupabaseConnected(){
+  document.getElementById('supabase-setup-section').style.display='none';document.getElementById('supabase-connected-section').style.display='block';
+  document.getElementById('sb-connected-email').textContent='Workspace: '+(localStorage.getItem(FB_WS_KEY)||fbWorkspace||'dionizos')+' · ścieżka: workspaces/'+_safeKey(localStorage.getItem(FB_WS_KEY)||fbWorkspace||'dionizos');
+  _sbSetDot(true,'Połączono z Firebase');
+}
+function disconnectSupabase(){
+  if(!confirm('Rozłączyć sync z Firebase na tym urządzeniu? Dane w Firebase nie zostaną usunięte.'))return;
+  fbStopRealtime();clearTimeout(_fbPushTimer);fbDb=null;fbConfig=null;fbWorkspace='';fbClearLocalConfig();
+  document.getElementById('supabase-setup-section').style.display='block';document.getElementById('supabase-connected-section').style.display='none';
+  ['sb-api-input','sb-auth-input','sb-db-input','sb-project-input','sb-appid-input','sb-email-input'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  _sbSetDot(false,'Rozłączono');updateMobSettingsDot();
+}
+async function sbPush(){if(!fbIsReady()){showStorageWarning('Najpierw połącz się z Firebase.');return;} _sbSetStatus('Wysyłam…');await sbPushSilent();showStorageWarning('✅ Dane wysłane do Firebase o '+new Date().toLocaleTimeString('pl-PL'));}
+async function sbPull(){if(!fbIsReady()){showStorageWarning('Najpierw połącz się z Firebase.');return;} _sbSetStatus('Pobieram…');try{const snap=await fbRoot().once('value');const data=snap.val()||{};fbApplyQuotes(Object.entries(data.quotes||{}).map(([k,v])=>({...v,_fbKey:k})));fbApplyProducts(Object.entries(data.products||{}).map(([k,v])=>({...v,_fbKey:k})));fbApplyHS(Object.entries(data.hsdb||{}).map(([k,v])=>({...v,_fbKey:k})));fbApplyCalcProducts(Object.entries((data.calc&&data.calc.products)||{}).map(([k,v])=>({...v,_fbKey:k})));_sbSetDot(true,'Pobrano · '+new Date().toLocaleTimeString('pl-PL'));showStorageWarning('✅ Dane pobrane z Firebase');}catch(e){_sbSetDot(false,'Błąd pobierania');showStorageWarning('❌ Błąd pobierania: '+escHtml(e.message||String(e)));}}
+async function fbRemoveCalcProduct(p){if(fbIsReady()&&p&&p._id)await fbRoot('calc/products/'+_calcKey(p)).remove();}
+async function fbRemoveQuote(id){if(fbIsReady())await fbRoot('quotes/'+_safeKey(id)).remove();}
+async function fbRemoveProductDB(key){if(fbIsReady())await fbRoot('products/'+_safeKey(key)).remove();}
+async function fbRemoveHS(h){if(fbIsReady()&&h)await fbRoot('hsdb/'+_hsKey(h)).remove();}
+// ═══ INIT ═══
+g('qd').value=new Date().toISOString().split('T')[0];
+loadHSDB();
+rc();
+setTimeout(updateStorageBar,300);
+// Auto-connect Firebase jeśli konfiguracja jest zapisana
+(async()=>{
+  const cfg=fbReadLocalConfig()||DEFAULT_FIREBASE_CONFIG;
+  const ws=localStorage.getItem(FB_WS_KEY)||DEFAULT_FIREBASE_WORKSPACE||'dionizos';
+  if(cfg&&ws){
+    try{
+      await initFirebase(cfg,ws);
+      fbSaveLocalConfig(cfg,ws);
+      fbStartRealtime();
+      await sbPushSilent();
+      updateMobSettingsDot();
+      console.log('Firebase auto-connect OK:', ws);
+    }catch(e){console.warn('Firebase auto-connect error',e);}
+  }
+})();
+
+// ═══ MOBILE NAV & DRAWER ═══
+function isMob(){return window.innerWidth<=640;}
+
+function mobNav(v){
+  closeMobSide();
+  sv(v);
+}
+
+function toggleMobSide(){
+  const side=document.getElementById('side-panel');
+  const bd=document.getElementById('side-backdrop');
+  if(!side)return;
+  if(side.classList.contains('mob-open')){closeMobSide();}
+  else{
+    side.classList.add('mob-open');
+    if(bd)bd.classList.add('on');
+    document.body.style.overflow='hidden';
+    const ms=document.getElementById('mn-settings');
+    if(ms)ms.classList.add('on');
+  }
+}
+
+function closeMobSide(){
+  const side=document.getElementById('side-panel');
+  const bd=document.getElementById('side-backdrop');
+  if(side)side.classList.remove('mob-open');
+  if(bd)bd.classList.remove('on');
+  document.body.style.overflow='';
+  const ms=document.getElementById('mn-settings');
+  if(ms)ms.classList.remove('on');
+}
+
+function updateMobSettingsDot(){
+  const dot=document.getElementById('mob-settings-dot');
+  if(dot)dot.classList.toggle('on',typeof fbIsReady==='function'&&fbIsReady());
+}
+
+// Swipe down → zamknij drawer
+(function(){
+  let startY=0,active=false,moved=false;
+  const getSide=()=>document.getElementById('side-panel');
+  document.addEventListener('touchstart',e=>{
+    const s=getSide();
+    if(s&&s.classList.contains('mob-open')&&e.touches[0].clientY<80){
+      startY=e.touches[0].clientY;active=true;moved=false;
+    }
+  },{passive:true});
+  document.addEventListener('touchmove',e=>{
+    if(!active)return;
+    const dy=e.touches[0].clientY-startY;
+    if(dy>0){moved=true;const s=getSide();if(s)s.style.transform=`translateY(${dy}px)`;}
+  },{passive:true});
+  document.addEventListener('touchend',e=>{
+    if(!active)return;active=false;
+    const dy=e.changedTouches[0].clientY-startY;
+    const s=getSide();if(s)s.style.transform='';
+    if(moved&&dy>70)closeMobSide();
+  },{passive:true});
+})();
+</script>
+</body>
+</html>
