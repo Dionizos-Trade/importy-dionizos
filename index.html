@@ -2267,16 +2267,22 @@ async function exportPDF(){
   async function imgToBase64(url){
     if(!url)return null;
     if(url.startsWith('data:'))return url;
+    // Try fetch (works for CORS-enabled servers)
+    try{
+      const resp=await fetch(url,{mode:'cors'});
+      const blob=await resp.blob();
+      return await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(blob);});
+    }catch(e1){}
+    // Fallback: Image element + canvas
     try{
       const img=new Image();
       img.crossOrigin='anonymous';
       await new Promise((res,rej)=>{img.onload=res;img.onerror=rej;img.src=url;});
       const canvas=document.createElement('canvas');
       canvas.width=64;canvas.height=64;
-      const ctx=canvas.getContext('2d');
-      ctx.drawImage(img,0,0,64,64);
+      canvas.getContext('2d').drawImage(img,0,0,64,64);
       return canvas.toDataURL('image/jpeg',0.8);
-    }catch(e){return null;}
+    }catch(e2){return null;}
   }
 
   const db=getProductsDB();
@@ -2284,7 +2290,13 @@ async function exportPDF(){
   await Promise.all(ps.map(async(p,i)=>{
     const key=p.sku?('sku:'+p.sku):('name:'+p.name);
     const dbEntry=db.find(x=>x.key===key);
-    const imgUrl=(dbEntry&&dbEntry.customImage&&dbEntry.imageUrl)?dbEntry.imageUrl:p.imageUrl;
+    // Priority: customImage from DB → base64 thumbnail from DB → session image → DB http url
+    let imgUrl=null;
+    if(dbEntry&&dbEntry.customImage&&dbEntry.imageUrl) imgUrl=dbEntry.imageUrl;
+    else if(dbEntry&&dbEntry.imageUrl&&dbEntry.imageUrl.startsWith('data:')) imgUrl=dbEntry.imageUrl;
+    else if(p.imageUrl&&p.imageUrl.startsWith('data:')) imgUrl=p.imageUrl;
+    else if(dbEntry&&dbEntry.imageUrl) imgUrl=dbEntry.imageUrl;
+    else imgUrl=p.imageUrl;
     const b64=await imgToBase64(imgUrl);
     if(b64)imageMap[i]=b64;
   }));
