@@ -2264,25 +2264,21 @@ async function exportPDF(){
   doc.text('Data: '+qdate,pageW-12,16,{align:'right'});
 
   // ─── LOAD IMAGES ───
+  const toB64=blob=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(blob);});
   async function imgToBase64(url){
     if(!url)return null;
     if(url.startsWith('data:'))return url;
-    // Try fetch (works for CORS-enabled servers)
+    // Try 1: direct fetch (works if server sends CORS headers)
     try{
-      const resp=await fetch(url,{mode:'cors'});
-      const blob=await resp.blob();
-      return await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(blob);});
+      const resp=await fetch(url,{credentials:'omit'});
+      if(resp.ok)return await toB64(await resp.blob());
     }catch(e1){}
-    // Fallback: Image element + canvas
+    // Try 2: CORS proxy — for public image URLs that don't send CORS headers (e.g. apilo CDN)
     try{
-      const img=new Image();
-      img.crossOrigin='anonymous';
-      await new Promise((res,rej)=>{img.onload=res;img.onerror=rej;img.src=url;});
-      const canvas=document.createElement('canvas');
-      canvas.width=64;canvas.height=64;
-      canvas.getContext('2d').drawImage(img,0,0,64,64);
-      return canvas.toDataURL('image/jpeg',0.8);
-    }catch(e2){return null;}
+      const resp=await fetch('https://corsproxy.io/?'+encodeURIComponent(url));
+      if(resp.ok)return await toB64(await resp.blob());
+    }catch(e2){}
+    return null;
   }
 
   const db=getProductsDB();
@@ -2338,7 +2334,7 @@ async function exportPDF(){
     theme:'grid',
     margin:{left:8,right:8},
     headStyles:{fillColor:red,textColor:[255,255,255],fontSize:7,fontStyle:'bold',cellPadding:2},
-    bodyStyles:{fontSize:7,cellPadding:2,minCellHeight:14},
+    bodyStyles:{fontSize:7,cellPadding:2,minCellHeight:12},
     alternateRowStyles:{fillColor:lightgray},
     columnStyles:{
       0:{halign:'center',cellWidth:16},
