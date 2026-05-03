@@ -2273,9 +2273,9 @@ async function exportPDF(){
       const resp=await fetch(url,{credentials:'omit'});
       if(resp.ok)return await toB64(await resp.blob());
     }catch(e1){}
-    // Try 2: CORS proxy — for public image URLs that don't send CORS headers (e.g. apilo CDN)
+    // Try 2: allorigins.win proxy — works for apilo CDN and most public image hosts
     try{
-      const resp=await fetch('https://corsproxy.io/?'+encodeURIComponent(url));
+      const resp=await fetch('https://api.allorigins.win/raw?url='+encodeURIComponent(url));
       if(resp.ok)return await toB64(await resp.blob());
     }catch(e2){}
     return null;
