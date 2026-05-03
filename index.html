@@ -1305,32 +1305,29 @@ async function stripImagesFromSnap(snap){
   return s;
 }
 
-async function setQuotes(q){
-  const seen = new Set();
-
-  // usuwanie duplikatów
-  const deduped = (q || []).filter(x => {
-    const key = String(x.id || x.name || '');
-    if (!key || seen.has(key)) return false;
-    seen.add(key);
-    return true;
+function setQuotes(q){
+  // Strip images before saving to save space
+  // async compress images in all quotes, then save
+  Promise.all(q.map(snap=>stripImagesFromSnap(snap))).then(lean=>{
+    const data=JSON.stringify(lean);
+    try{
+      localStorage.setItem('icalc_quotes',data);
+      updateStorageBar();
+      if(typeof fbPushQuotes==='function')fbPushQuotes();
+    }catch(e){
+      // Quota exceeded — try removing oldest quotes until it fits
+      if(lean.length>1){
+        const trimmed=lean.slice(0,Math.max(1,lean.length-2));
+        try{
+          localStorage.setItem('icalc_quotes',JSON.stringify(trimmed));
+          showStorageWarning('Brak miejsca — usunięto '+(lean.length-trimmed.length)+' najstarsze wyceny. Użyte: '+lsUsedKB()+' KB / ~5000 KB.');
+          updateStorageBar();
+          return;
+        }catch{}
+      }
+      showStorageWarning('Krytyczny brak miejsca w localStorage ('+lsUsedKB()+' KB). Wyczyść stare wyceny ręcznie.');
+    }
   });
-
-  // odchudzenie (bez obrazów)
-  const lean = await Promise.all(deduped.map(snap => stripImagesFromSnap(snap)));
-
-  try {
-    localStorage.setItem('icalc_quotes', JSON.stringify(lean));
-
-    if (typeof updateStorageBar === 'function') updateStorageBar();
-    if (typeof renderQuotes === 'function') renderQuotes();
-
-    // ważne: najpierw zapis lokalny → potem Firebase
-    if (typeof fbPushQuotes === 'function') await fbPushQuotes();
-
-  } catch(e) {
-    showStorageWarning('Błąd zapisu wycen: ' + escHtml(e.message || String(e)));
-  }
 }
 
 function showStorageWarning(msg){
@@ -1378,7 +1375,6 @@ function loadQuote(id){
   splitMode=s.splitMode||'cbm';shipCNisCNY=s.shipCNisCNY!==false;
   ss(splitMode);setShipCur(shipCNisCNY?'CNY':'LOCAL');
   if(q.note)g('qn').value=q.note;
-  _ignoreRemoteCalcUntil=Date.now()+3000;
   sv('calc');st2('d');rc();
 }
 
@@ -2386,7 +2382,7 @@ function clearOldQuotes(keepN){
 }
 
 // ═══ FIREBASE REALTIME SYNC ═══
-let fbConfig=null, fbWorkspace='', fbDb=null, _fbListeners=[], _fbPushTimer=null, _fbApplying=false, _fbConnected=false, _fbInitialCalcSeen=false, _ignoreRemoteCalcUntil=0;
+let fbConfig=null, fbWorkspace='', fbDb=null, _fbListeners=[], _fbPushTimer=null, _fbApplying=false, _fbConnected=false, _fbInitialCalcSeen=false;
 const FB_CFG_KEY='firebase_config_v1', FB_WS_KEY='firebase_workspace_v1';
 // Domyślna konfiguracja Firebase z Twojego projektu.
 // Możesz ją później zmienić w panelu 🔥 Firebase Sync.
@@ -2454,10 +2450,9 @@ async function fbPushHSDB(){if(!fbIsReady()||_fbApplying)return;const updates={}
 async function fbPushCalcState(){
   if(!fbIsReady()||_fbApplying)return;
   ensurePSIds();
-  const updates={};
-  ps.forEach(p=>{updates['calc/products/'+_calcKey(p)] = _stamp(p);});
-  updates['calc/settings']=fbSettingsSnapshot();
-  return fbRoot().update(updates);
+  const calcProducts={};
+  ps.forEach(p=>{calcProducts[_calcKey(p)] = _stamp(p);});
+  return fbRoot().update({'calc/products': ps.length?calcProducts:null,'calc/settings':fbSettingsSnapshot()});
 }
 
 async function sbPushSilent(){
@@ -2484,34 +2479,9 @@ function _sbSetSyncIcon(icon){
 }
 
 function fbApplyQuotes(remote){
-  _fbApplying = true;
-
-  try {
-    const clean = [];
-    const seen = new Set();
-
-    // 🔥 KLUCZOWE: NIE ŁĄCZYMY z localStorage
-    // tylko nadpisujemy danymi z Firebase
-
-    (remote || [])
-      .sort((a,b)=>(b.id||0)-(a.id||0))
-      .forEach(q => {
-        const key = String(q.id || q.name || '');
-        if (!key || seen.has(key)) return;
-        seen.add(key);
-        clean.push(q);
-      });
-
-    localStorage.setItem('icalc_quotes', JSON.stringify(clean));
-
-    if (typeof renderQuotes === 'function') renderQuotes();
-    if (typeof updateStorageBar === 'function') updateStorageBar();
-
-  } catch(e) {
-    console.warn(e);
-  } finally {
-    _fbApplying = false;
-  }
+  _fbApplying=true;
+  try{const merged=mergeArrayByKey(getQuotes(),remote,_quoteKey).sort((a,b)=>(b.id||0)-(a.id||0));localStorage.setItem('icalc_quotes',JSON.stringify(merged));renderQuotes&&renderQuotes();updateStorageBar&&updateStorageBar();}
+  catch(e){console.warn(e)}finally{_fbApplying=false;}
 }
 function fbApplyProducts(remote){
   _fbApplying=true;
@@ -2642,6 +2612,7 @@ setTimeout(updateStorageBar,300);
       await initFirebase(cfg,ws);
       fbSaveLocalConfig(cfg,ws);
       fbStartRealtime();
+      await sbPushSilent();
       updateMobSettingsDot();
       console.log('Firebase auto-connect OK:', ws);
     }catch(e){console.warn('Firebase auto-connect error',e);}
