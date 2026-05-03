@@ -2265,37 +2265,65 @@ async function exportPDF(){
 
   // ─── LOAD IMAGES ───
   const toB64=blob=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(blob);});
-  async function imgToBase64(url){
-    if(!url)return null;
-    if(url.startsWith('data:'))return url;
-    // Try 1: direct fetch (works if server sends CORS headers)
+
+  async function fetchViaProxy(url,ms){
+    const ctrl=new AbortController();
+    const t=setTimeout(()=>ctrl.abort(),ms);
     try{
-      const resp=await fetch(url,{credentials:'omit'});
+      const resp=await fetch('https://api.allorigins.win/raw?url='+encodeURIComponent(url),{signal:ctrl.signal});
+      clearTimeout(t);
       if(resp.ok)return await toB64(await resp.blob());
-    }catch(e1){}
-    // Try 2: allorigins.win proxy — works for apilo CDN and most public image hosts
-    try{
-      const resp=await fetch('https://api.allorigins.win/raw?url='+encodeURIComponent(url));
-      if(resp.ok)return await toB64(await resp.blob());
-    }catch(e2){}
+    }catch{clearTimeout(t);}
     return null;
   }
 
   const db=getProductsDB();
   const imageMap={};
-  await Promise.all(ps.map(async(p,i)=>{
+  let dbUpdated=false;
+
+  // Show progress on PDF button while loading
+  const pdfBtn=document.querySelector('button[onclick="exportPDF()"]');
+  const origBtnHtml=pdfBtn?pdfBtn.innerHTML:'';
+  const httpProducts=ps.filter(p=>{ // count how many need proxy
+    const key=p.sku?('sku:'+p.sku):('name:'+p.name);
+    const d=db.find(x=>x.key===key);
+    const url=(d&&d.customImage&&d.imageUrl)||d?.imageUrl||p.imageUrl||'';
+    return url.startsWith('http');
+  });
+  if(pdfBtn&&httpProducts.length) pdfBtn.innerHTML='⏳ '+0+'/'+httpProducts.length;
+
+  let httpDone=0;
+  for(let i=0;i<ps.length;i++){
+    const p=ps[i];
     const key=p.sku?('sku:'+p.sku):('name:'+p.name);
     const dbEntry=db.find(x=>x.key===key);
-    // Priority: customImage from DB → base64 thumbnail from DB → session image → DB http url
-    let imgUrl=null;
-    if(dbEntry&&dbEntry.customImage&&dbEntry.imageUrl) imgUrl=dbEntry.imageUrl;
-    else if(dbEntry&&dbEntry.imageUrl&&dbEntry.imageUrl.startsWith('data:')) imgUrl=dbEntry.imageUrl;
-    else if(p.imageUrl&&p.imageUrl.startsWith('data:')) imgUrl=p.imageUrl;
-    else if(dbEntry&&dbEntry.imageUrl) imgUrl=dbEntry.imageUrl;
-    else imgUrl=p.imageUrl;
-    const b64=await imgToBase64(imgUrl);
-    if(b64)imageMap[i]=b64;
-  }));
+    // Priority: customImage DB → base64 DB → base64 session → http DB → http session
+    const imgUrl=
+      (dbEntry&&dbEntry.customImage&&dbEntry.imageUrl)?dbEntry.imageUrl:
+      (dbEntry&&dbEntry.imageUrl&&dbEntry.imageUrl.startsWith('data:'))?dbEntry.imageUrl:
+      (p.imageUrl&&p.imageUrl.startsWith('data:'))?p.imageUrl:
+      (dbEntry&&dbEntry.imageUrl)||p.imageUrl||'';
+
+    if(!imgUrl) continue;
+
+    if(imgUrl.startsWith('data:')){
+      imageMap[i]=imgUrl; // instant, no network needed
+    } else if(imgUrl.startsWith('http')){
+      // Sequential proxy loading — avoids overwhelming proxy with parallel requests
+      const b64=await fetchViaProxy(imgUrl,4500);
+      if(b64){
+        imageMap[i]=b64;
+        // Cache base64 back to products DB so next PDF is instant
+        if(dbEntry&&!dbEntry.customImage) dbEntry.imageUrl=b64;
+        dbUpdated=true;
+      }
+      httpDone++;
+      if(pdfBtn&&httpProducts.length) pdfBtn.innerHTML='⏳ '+httpDone+'/'+httpProducts.length;
+    }
+  }
+
+  if(pdfBtn) pdfBtn.innerHTML=origBtnHtml;
+  if(dbUpdated) setProductsDB(db); // background save — caches base64 for future PDFs
 
   // ─── PRODUCTS TABLE ───
   const tableY=26;
