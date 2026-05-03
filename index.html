@@ -382,7 +382,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
       <div class="pg on" id="pd"><div class="hg" id="hg"></div><div id="fa" style="display:none" class="alrt"></div><div id="dt"></div></div>
       <div class="pg" id="pp">
         <div style="overflow-x:auto"><table class="pt"><thead><tr>
-          <th></th><th>SKU</th><th>Nazwa</th><th>Ilość</th><th>Cena¥</th>
+          <th></th><th style="width:46px;text-align:center">Foto</th><th>SKU</th><th>Nazwa</th><th>Ilość</th><th>Cena¥</th>
           <th>Ship.CN <span id="ship-th" style="color:var(--or)">(¥)</span></th>
           <th>Kartony</th><th>CBM/kart.</th><th>Total CBM</th><th>Waga kg</th>
           <th>HS</th><th>Cło%</th><th>Dod.</th><th>Koszt/szt.</th><th></th>
@@ -780,8 +780,12 @@ function rd(){
 function rp(){
   const c=cur(),tb=g('prb');
   if(!ps.length){tb.innerHTML='<tr><td colspan="15" style="text-align:center;padding:18px;color:var(--color-text-secondary,#6b6b6b)">Brak produktów</td></tr>';return}
-  tb.innerHTML=ps.map((p,i)=>{const r=calc(p,ps);return`<tr>
+  tb.innerHTML=ps.map((p,i)=>{const r=calc(p,ps);const imgUrl=p.imageUrl||'';return`<tr>
     <td><span class="cc" style="background:${COLS[i%COLS.length]}"></span></td>
+    <td style="width:46px;padding:2px 3px;text-align:center">
+      ${imgUrl?('<img src="'+escHtml(imgUrl)+'" style="width:33px;height:33px;object-fit:cover;border-radius:3px;display:block;margin:0 auto 2px" onerror="this.style.display=\'none\'">'):('<div style="width:33px;height:33px;border:.5px dashed #ccc;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:14px;margin:0 auto 2px;color:#ccc">📷</div>')}
+      <input type="text" value="${escHtml(imgUrl)}" placeholder="URL…" title="Wklej link do zdjęcia" style="width:40px;font-size:8px;height:16px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:3px;padding:0 2px;background:var(--color-background-secondary,#f5f4f1)" onchange="ps[${i}].imageUrl=this.value.trim();rc()">
+    </td>
     <td><input value="${escHtml(p.sku||'')}" style="width:65px;font-family:monospace;font-size:10px;height:21px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:3px;padding:0 4px" placeholder="SKU" onchange="ps[${i}].sku=this.value.trim()" title="SKU — kliknij aby edytować"></td>
     <td><input value="${escHtml(p.name||'')}" style="width:105px;height:21px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:3px;padding:0 4px;font-size:10px" onchange="ps[${i}].name=this.value;rc()" title="Nazwa — kliknij aby edytować"></td>
     <td><input type="number" value="${p.qty}" style="width:50px" onchange="ps[${i}].qty=+this.value;rc()"></td>
