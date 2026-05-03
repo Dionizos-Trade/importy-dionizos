@@ -1305,29 +1305,32 @@ async function stripImagesFromSnap(snap){
   return s;
 }
 
-function setQuotes(q){
-  // Strip images before saving to save space
-  // async compress images in all quotes, then save
-  Promise.all(q.map(snap=>stripImagesFromSnap(snap))).then(lean=>{
-    const data=JSON.stringify(lean);
-    try{
-      localStorage.setItem('icalc_quotes',data);
-      updateStorageBar();
-      if(typeof fbPushQuotes==='function')fbPushQuotes();
-    }catch(e){
-      // Quota exceeded — try removing oldest quotes until it fits
-      if(lean.length>1){
-        const trimmed=lean.slice(0,Math.max(1,lean.length-2));
-        try{
-          localStorage.setItem('icalc_quotes',JSON.stringify(trimmed));
-          showStorageWarning('Brak miejsca — usunięto '+(lean.length-trimmed.length)+' najstarsze wyceny. Użyte: '+lsUsedKB()+' KB / ~5000 KB.');
-          updateStorageBar();
-          return;
-        }catch{}
-      }
-      showStorageWarning('Krytyczny brak miejsca w localStorage ('+lsUsedKB()+' KB). Wyczyść stare wyceny ręcznie.');
-    }
+async function setQuotes(q){
+  const seen = new Set();
+
+  // usuwanie duplikatów
+  const deduped = (q || []).filter(x => {
+    const key = String(x.id || x.name || '');
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
   });
+
+  // odchudzenie (bez obrazów)
+  const lean = await Promise.all(deduped.map(snap => stripImagesFromSnap(snap)));
+
+  try {
+    localStorage.setItem('icalc_quotes', JSON.stringify(lean));
+
+    if (typeof updateStorageBar === 'function') updateStorageBar();
+    if (typeof renderQuotes === 'function') renderQuotes();
+
+    // ważne: najpierw zapis lokalny → potem Firebase
+    if (typeof fbPushQuotes === 'function') await fbPushQuotes();
+
+  } catch(e) {
+    showStorageWarning('Błąd zapisu wycen: ' + escHtml(e.message || String(e)));
+  }
 }
 
 function showStorageWarning(msg){
@@ -2481,9 +2484,34 @@ function _sbSetSyncIcon(icon){
 }
 
 function fbApplyQuotes(remote){
-  _fbApplying=true;
-  try{const merged=mergeArrayByKey(getQuotes(),remote,_quoteKey).sort((a,b)=>(b.id||0)-(a.id||0));localStorage.setItem('icalc_quotes',JSON.stringify(merged));renderQuotes&&renderQuotes();updateStorageBar&&updateStorageBar();}
-  catch(e){console.warn(e)}finally{_fbApplying=false;}
+  _fbApplying = true;
+
+  try {
+    const clean = [];
+    const seen = new Set();
+
+    // 🔥 KLUCZOWE: NIE ŁĄCZYMY z localStorage
+    // tylko nadpisujemy danymi z Firebase
+
+    (remote || [])
+      .sort((a,b)=>(b.id||0)-(a.id||0))
+      .forEach(q => {
+        const key = String(q.id || q.name || '');
+        if (!key || seen.has(key)) return;
+        seen.add(key);
+        clean.push(q);
+      });
+
+    localStorage.setItem('icalc_quotes', JSON.stringify(clean));
+
+    if (typeof renderQuotes === 'function') renderQuotes();
+    if (typeof updateStorageBar === 'function') updateStorageBar();
+
+  } catch(e) {
+    console.warn(e);
+  } finally {
+    _fbApplying = false;
+  }
 }
 function fbApplyProducts(remote){
   _fbApplying=true;
@@ -2496,7 +2524,6 @@ function fbApplyHS(remote){
   catch(e){console.warn(e)}finally{_fbApplying=false;}
 }
 function fbApplyCalcProducts(remote){
-  if(Date.now()<_ignoreRemoteCalcUntil)return;
   _fbApplying=true;
   try{
     ensurePSIds();
