@@ -354,9 +354,11 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
       <div style="display:flex;gap:5px">
         <input type="text" id="qname" placeholder="Nazwa wyceny…" style="flex:1;height:27px;font-size:11px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:5px;padding:0 7px;background:var(--color-background-primary,#fff);color:var(--color-text-primary,#1a1a1a)">
         <button onclick="saveQuote()" title="Zapisz wycenę" style="height:27px;width:32px;font-size:14px;border:none;border-radius:5px;cursor:pointer;background:var(--or);color:white">💾</button>
+        <button onclick="saveDraftQuote()" title="Zapisz jako roboczą (produkty nie trafią do bazy produktów)" style="height:27px;width:32px;font-size:14px;border:none;border-radius:5px;cursor:pointer;background:#7f8c8d;color:white">📝</button>
         <button onclick="exportPDF()" title="Eksportuj wycenę do PDF" style="height:27px;width:32px;font-size:14px;border:none;border-radius:5px;cursor:pointer;background:#c0392b;color:white">📄</button>
       </div>
       <div id="save-feedback" style="font-size:10px;color:var(--green);margin-top:4px;display:none">✓ Zapisano!</div>
+      <div id="save-draft-feedback" style="font-size:10px;color:#7f8c8d;margin-top:4px;display:none">✓ Zapisano jako robocza!</div>
         <div style="margin-top:6px">
           <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--color-text-secondary,#6b6b6b);margin-bottom:2px"><span>Storage</span><span id="storage-bar-label">—</span></div>
           <div style="height:4px;background:var(--color-border-tertiary,#e0dedd);border-radius:2px;overflow:hidden"><div id="storage-bar" style="height:100%;width:0%;border-radius:2px;background:var(--green);transition:width .4s"></div></div>
@@ -1361,6 +1363,26 @@ function saveQuote(){
   sbAutoTrigger();
 }
 
+function saveDraftQuote(){
+  const nameEl=g('qname'),name=(nameEl.value||'').trim();
+  if(!name){nameEl.style.border='.5px solid #E24B4A';nameEl.focus();return}
+  nameEl.style.border='';
+  if(!ps.length){alert('Dodaj produkty przed zapisaniem wyceny.');return}
+  const quotes=getQuotes();
+  const snap={
+    id:Date.now(),name,date:new Date().toISOString().split('T')[0],note:g('qn').value,
+    products:JSON.parse(JSON.stringify(ps)),
+    settings:{ct:g('ct').value,cv:gn('cv'),fr:gn('fr'),cu:cur(),ra:rate(),kc:gn('kc'),kp:gn('kp'),kl:gn('kl'),ki:gn('ki'),ko:gn('ko'),du:getDuty(),va:getVAT(),splitMode,shipCNisCNY},
+    totalCost:ps.reduce((s,p)=>s+calc(p,ps).tot,0),currency:cur(),
+    draft:true
+  };
+  quotes.unshift(snap);setQuotes(quotes);nameEl.value='';
+  // Draft: skip updateProductsDB — products are NOT added to the product database
+  const fb=g('save-draft-feedback');fb.style.display='block';setTimeout(()=>fb.style.display='none',1800);
+  updateStorageBar();
+  sbAutoTrigger();
+}
+
 function loadQuote(id){
   const q=getQuotes().find(x=>x.id===id);if(!q)return;
   // Merge saved thumbnails with current session images (current session wins if available)
@@ -1392,9 +1414,9 @@ function renderQuotes(){
     el.innerHTML='<div class="q-empty"><div style="font-size:32px;margin-bottom:9px">💾</div><div>Brak zapisanych wycen.</div><div style="margin-top:5px;font-size:11px">Użyj pola "Zapisz wycenę" w lewym panelu kalkulatora.</div></div>';
     return;
   }
-  el.innerHTML=quotes.map(q=>`<div class="qcard" onclick="loadQuote(${q.id})">
-    <div class="qcard-dot">${(q.name||'W').charAt(0).toUpperCase()}</div>
-    <div class="qcard-body"><div class="qcard-name">${escHtml(q.name)}</div><div class="qcard-meta">${q.date} · ${(q.products||[]).length} produktów${q.note?' · '+escHtml(q.note):''}</div></div>
+  el.innerHTML=quotes.map(q=>`<div class="qcard${q.draft?' qcard-draft':''}" onclick="loadQuote(${q.id})">
+    <div class="qcard-dot" style="${q.draft?'background:#7f8c8d':''}">${(q.name||'W').charAt(0).toUpperCase()}</div>
+    <div class="qcard-body"><div class="qcard-name">${escHtml(q.name)}${q.draft?' <span style="font-size:9px;background:#7f8c8d;color:#fff;border-radius:3px;padding:1px 5px;font-weight:700;vertical-align:middle;letter-spacing:.03em">ROBOCZA</span>':''}</div><div class="qcard-meta">${q.date} · ${(q.products||[]).length} produktów${q.note?' · '+escHtml(q.note):''}</div></div>
     <div class="qcard-price">${q.totalCost?q.totalCost.toFixed(0)+' '+q.currency:''}</div>
     <button class="qcard-del" onclick="deleteQuote(${q.id},event)" title="Usuń">🗑</button>
   </div>`).join('');
