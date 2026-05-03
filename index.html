@@ -1375,6 +1375,7 @@ function loadQuote(id){
   splitMode=s.splitMode||'cbm';shipCNisCNY=s.shipCNisCNY!==false;
   ss(splitMode);setShipCur(shipCNisCNY?'CNY':'LOCAL');
   if(q.note)g('qn').value=q.note;
+  _ignoreRemoteCalcUntil=Date.now()+3000;
   sv('calc');st2('d');rc();
 }
 
@@ -2382,7 +2383,7 @@ function clearOldQuotes(keepN){
 }
 
 // ═══ FIREBASE REALTIME SYNC ═══
-let fbConfig=null, fbWorkspace='', fbDb=null, _fbListeners=[], _fbPushTimer=null, _fbApplying=false, _fbConnected=false, _fbInitialCalcSeen=false;
+let fbConfig=null, fbWorkspace='', fbDb=null, _fbListeners=[], _fbPushTimer=null, _fbApplying=false, _fbConnected=false, _fbInitialCalcSeen=false, _ignoreRemoteCalcUntil=0;
 const FB_CFG_KEY='firebase_config_v1', FB_WS_KEY='firebase_workspace_v1';
 // Domyślna konfiguracja Firebase z Twojego projektu.
 // Możesz ją później zmienić w panelu 🔥 Firebase Sync.
@@ -2450,9 +2451,10 @@ async function fbPushHSDB(){if(!fbIsReady()||_fbApplying)return;const updates={}
 async function fbPushCalcState(){
   if(!fbIsReady()||_fbApplying)return;
   ensurePSIds();
-  const calcProducts={};
-  ps.forEach(p=>{calcProducts[_calcKey(p)] = _stamp(p);});
-  return fbRoot().update({'calc/products': ps.length?calcProducts:null,'calc/settings':fbSettingsSnapshot()});
+  const updates={};
+  ps.forEach(p=>{updates['calc/products/'+_calcKey(p)] = _stamp(p);});
+  updates['calc/settings']=fbSettingsSnapshot();
+  return fbRoot().update(updates);
 }
 
 async function sbPushSilent(){
@@ -2494,6 +2496,7 @@ function fbApplyHS(remote){
   catch(e){console.warn(e)}finally{_fbApplying=false;}
 }
 function fbApplyCalcProducts(remote){
+  if(Date.now()<_ignoreRemoteCalcUntil)return;
   _fbApplying=true;
   try{
     ensurePSIds();
