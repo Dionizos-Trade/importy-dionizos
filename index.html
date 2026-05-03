@@ -1348,8 +1348,11 @@ function applyCustomImagesFromDB(products){
   return products.map(p=>{
     const key=p.sku?('sku:'+p.sku):('name:'+p.name);
     const dbEntry=db.find(x=>x.key===key);
-    if(dbEntry&&dbEntry.customImage&&dbEntry.imageUrl) return Object.assign({},p,{imageUrl:dbEntry.imageUrl});
-    return p;
+    if(!dbEntry) return p;
+    const overrides={};
+    if(dbEntry.customImage&&dbEntry.imageUrl) overrides.imageUrl=dbEntry.imageUrl;
+    if(dbEntry.customName&&dbEntry.name) overrides.name=dbEntry.name;
+    return Object.keys(overrides).length?Object.assign({},p,overrides):p;
   });
 }
 
@@ -1398,13 +1401,21 @@ function loadQuote(id){
   // Merge saved thumbnails with current session images (current session wins if available)
   const currentImgMap={};
   ps.forEach(p=>{if(p.imageUrl&&p.sku)currentImgMap[p.sku]=p.imageUrl;if(p.imageUrl&&p.name)currentImgMap[p.name]=p.imageUrl;});
-  // Build custom image map from products DB (customImage=true takes highest priority)
-  const customImgMap={};
-  getProductsDB().forEach(d=>{if(d.customImage&&d.imageUrl){if(d.sku)customImgMap['sku:'+d.sku]=d.imageUrl;customImgMap['name:'+d.name]=d.imageUrl;}});
+  // Build custom fields map from products DB (customImage/customName=true take highest priority)
+  const customImgMap={},customNameMap={};
+  getProductsDB().forEach(d=>{
+    const keys=[];if(d.sku)keys.push('sku:'+d.sku);keys.push('name:'+d.name);
+    keys.forEach(k=>{
+      if(d.customImage&&d.imageUrl) customImgMap[k]=d.imageUrl;
+      if(d.customName&&d.name) customNameMap[k]=d.name;
+    });
+  });
   ps=q.products.map(p=>{
+    const k=p.sku?('sku:'+p.sku):('name:'+p.name);
     const customImg=customImgMap['sku:'+p.sku]||customImgMap['name:'+p.name]||'';
     const sessionImg=currentImgMap[p.sku]||currentImgMap[p.name]||'';
-    return {...p, imageUrl: customImg||sessionImg||p.imageUrl||''};
+    const customName=customNameMap['sku:'+p.sku]||customNameMap['name:'+p.name]||'';
+    return {...p, imageUrl: customImg||sessionImg||p.imageUrl||'', ...(customName&&{name:customName})};
   });
   const s=q.settings||{};
   ['ct','cv','fr','cu','ra','kc','kp','kl','ki','ko','du','va'].forEach(k=>{if(s[k]!==undefined&&g(k))g(k).value=s[k];});
