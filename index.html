@@ -98,7 +98,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
 @media(min-width:641px){
   .mob-nav{display:none!important}
   .side-backdrop{display:none!important}
-  .side-handle{display:none}
+  .side-handle{display:none} 
 }
 /* ─────────────────────────────────────────────────────────────────── */
 .s{padding:9px 12px;border-bottom:.5px solid var(--color-border-tertiary,#e0dedd)}
@@ -268,7 +268,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
 <div class="topbar">
   <div style="display:flex;align-items:center;gap:9px">
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><rect x="2" y="7" width="20" height="14" rx="2" stroke="white" stroke-width="1.5"/><path d="M2 11h20M8 11v10" stroke="white" stroke-width="1.5"/></svg>
-    <div><h1>DIONIZOS TRADE SP.ZOO — Kalkulator Import</h1><p>v14.0 · Koszt jednostkowy · CBM · Cło CN 🇨🇳 · VAT · Sync ⚡</p></div>
+    <div><h1>DIONIZOS TRADE — Kalkulator Import</h1><p>v14.0 · Koszt jednostkowy · CBM · Cło CN 🇨🇳 · VAT · Sync ⚡</p></div>
   </div>
   <div class="tnav-wrap">
     <button class="tnav on" onclick="sv('calc')">📊 Kalkulator</button>
@@ -2450,10 +2450,9 @@ async function fbPushHSDB(){if(!fbIsReady()||_fbApplying)return;const updates={}
 async function fbPushCalcState(){
   if(!fbIsReady()||_fbApplying)return;
   ensurePSIds();
-  const updates={};
-  ps.forEach(p=>{updates['calc/products/'+_calcKey(p)] = _stamp(p);});
-  updates['calc/settings']=fbSettingsSnapshot();
-  return fbRoot().update(updates);
+  const calcProducts={};
+  ps.forEach(p=>{calcProducts[_calcKey(p)] = _stamp(p);});
+  return fbRoot().update({'calc/products': ps.length?calcProducts:null,'calc/settings':fbSettingsSnapshot()});
 }
 
 async function sbPushSilent(){
