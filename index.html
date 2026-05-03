@@ -470,7 +470,14 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
 <div class="fullview" id="vproducts">
   <div class="pdb-search">
     <input id="pdb-q" placeholder="🔍 Szukaj po nazwie lub SKU…" oninput="renderProductsDB()">
+    <span id="pdb-count" style="font-size:11px;color:var(--color-text-secondary,#6b6b6b);white-space:nowrap"></span>
     <button onclick="exportProductsCSV()" style="height:30px;padding:0 12px;font-size:11px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:6px;cursor:pointer;background:transparent;white-space:nowrap">⬇ Eksport CSV</button>
+  </div>
+  <div id="pdb-bulk-bar" style="display:none;align-items:center;gap:10px;padding:7px 14px;background:#fff8e1;border-bottom:.5px solid #ffe082;font-size:11px">
+    <span id="pdb-bulk-count" style="font-weight:600"></span>
+    <button onclick="pdbSelectAll()" style="height:26px;padding:0 10px;font-size:11px;border:.5px solid #ccc;border-radius:5px;cursor:pointer;background:white">Zaznacz wszystkie</button>
+    <button onclick="pdbDeselectAll()" style="height:26px;padding:0 10px;font-size:11px;border:.5px solid #ccc;border-radius:5px;cursor:pointer;background:white">Odznacz</button>
+    <button onclick="pdbDeleteSelected()" style="height:26px;padding:0 10px;font-size:11px;border:none;border-radius:5px;cursor:pointer;background:#e2221a;color:white;font-weight:600">🗑 Usuń zaznaczone</button>
   </div>
   <div id="pdb-content"></div>
 </div>
@@ -2000,17 +2007,68 @@ function calcForSnap(p,products,settings){
   }catch{return null;}
 }
 
+let _pdbSelected=new Set();
+
+function _pdbUpdateBulkBar(){
+  const bar=g('pdb-bulk-bar');
+  const cnt=g('pdb-bulk-count');
+  if(!bar)return;
+  if(_pdbSelected.size>0){
+    bar.style.display='flex';
+    cnt.textContent=_pdbSelected.size+' zaznaczon'+(_pdbSelected.size===1?'y':'ych');
+  }else{
+    bar.style.display='none';
+  }
+}
+
+function _pdbToggle(key,cb){
+  if(cb.checked)_pdbSelected.add(key);else _pdbSelected.delete(key);
+  const card=cb.closest('.pdb-card');
+  if(card)card.style.outline=cb.checked?'2px solid var(--or)':'';
+  _pdbUpdateBulkBar();
+}
+
+function pdbSelectAll(){
+  document.querySelectorAll('.pdb-cb').forEach(cb=>{
+    cb.checked=true;_pdbSelected.add(cb.dataset.key);
+    const card=cb.closest('.pdb-card');if(card)card.style.outline='2px solid var(--or)';
+  });
+  _pdbUpdateBulkBar();
+}
+
+function pdbDeselectAll(){
+  document.querySelectorAll('.pdb-cb').forEach(cb=>{
+    cb.checked=false;
+    const card=cb.closest('.pdb-card');if(card)card.style.outline='';
+  });
+  _pdbSelected.clear();
+  _pdbUpdateBulkBar();
+}
+
+function pdbDeleteSelected(){
+  if(!_pdbSelected.size)return;
+  if(!confirm('Usunąć '+_pdbSelected.size+' produkt'+(_pdbSelected.size===1?'':'ów')+' z bazy?'))return;
+  let db=getProductsDB().filter(p=>!_pdbSelected.has(p.key));
+  localStorage.setItem('icalc_products',JSON.stringify(db));
+  _pdbSelected.clear();
+  if(typeof fbPushProductsDB==='function')fbPushProductsDB();
+  updateStorageBar&&updateStorageBar();
+  renderProductsDB();
+}
+
 function renderProductsDB(){
   const db=getProductsDB();
   const q=(g('pdb-q')&&g('pdb-q').value||'').toLowerCase().trim();
   const filtered=q?db.filter(p=>p.name.toLowerCase().includes(q)||(p.sku||'').toLowerCase().includes(q)):db;
   const el=g('pdb-content');
   if(!el)return;
+  const countEl=g('pdb-count');
+  if(countEl)countEl.textContent=db.length+' produkt'+(db.length===1?'':'ów')+(q&&filtered.length!==db.length?' ('+filtered.length+' wyników)':'');
   if(!filtered.length){
-    el.innerHTML=`<div style="text-align:center;padding:50px 20px;color:var(--color-text-secondary,#6b6b6b);font-size:13px">
-      <div style="font-size:36px;margin-bottom:12px">📦</div>
-      ${db.length===0?'Brak produktów w bazie.<br><span style="font-size:11px">Produkty trafiają tu automatycznie po zapisaniu wyceny.</span>':'Brak wyników dla &ldquo;<strong>'+escHtml(q)+'</strong>&rdquo;'}
-    </div>`;
+    el.innerHTML='<div style="text-align:center;padding:50px 20px;color:var(--color-text-secondary,#6b6b6b);font-size:13px">'
+      +'<div style="font-size:36px;margin-bottom:12px">📦</div>'
+      +(db.length===0?'Brak produktów w bazie.<br><span style="font-size:11px">Produkty trafiają tu automatycznie po zapisaniu wyceny.</span>':'Brak wyników dla &ldquo;<strong>'+escHtml(q)+'</strong>&rdquo;')
+      +'</div>';
     return;
   }
   el.innerHTML='<div class="pdb-grid">'+filtered.map(p=>{
@@ -2019,28 +2077,29 @@ function renderProductsDB(){
     let diffHtml='';
     if(prev){
       const d=p.lastPrice-prev.pricePerUnit,pct=prev.pricePerUnit>0?d/prev.pricePerUnit*100:0;
-      diffHtml=`<span class="pdb-hist-diff ${d>0?'diff-up':'diff-dn'}">${d>0?'▲':'▼'} ${Math.abs(pct).toFixed(1)}%</span>`;
+      diffHtml='<span class="pdb-hist-diff '+(d>0?'diff-up':'diff-dn')+'">'+(d>0?'▲':'▼')+' '+Math.abs(pct).toFixed(1)+'%</span>';
     }
     const img=p.imageUrl
-      ?`<img src="${escHtml(p.imageUrl)}" style="width:100%;height:160px;object-fit:cover;display:block" onerror="this.parentElement.innerHTML='<span style=\'font-size:36px\'>📦</span>'">`
+      ?('<img src="'+escHtml(p.imageUrl)+'" style="width:100%;height:160px;object-fit:cover;display:block" onerror="this.parentElement.innerHTML=\'<span style=font-size:36px>📦</span>\'">')
       :'<span style="font-size:36px">📦</span>';
-    return`<div class="pdb-card" data-pkey="${escHtml(p.key)}" onclick="openPdbModal(this.dataset.pkey)">
-      <div class="pdb-card-img">${img}</div>
-      ${p.imageUrl&&p.imageUrl.startsWith('http')?'<div style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,.55);color:white;font-size:9px;padding:2px 6px;border-radius:10px">📌 własne</div>':''}
-      <div class="pdb-card-body">
-        ${p.sku?`<div class="pdb-sku">${escHtml(p.sku)}</div>`:''}
-        <div class="pdb-name">${escHtml(p.name)}</div>
-        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-          <div class="pdb-price">${p.lastPrice.toFixed(2)} ${p.currency||'PLN'}/szt.</div>
-          ${diffHtml}
-        </div>
-        <div class="pdb-meta">
-          ${p.hs?`<span style="font-family:monospace;font-size:9px;color:var(--blue)">${escHtml(p.hs)}</span> · `:''}
-          ${hist.length} wycen${hist.length===1?'a':hist.length<5?'y':''}
-          · ostatnia: ${escHtml(p.lastDate||'')}
-        </div>
-      </div>
-    </div>`;
+    const isChecked=_pdbSelected.has(p.key);
+    return'<div class="pdb-card" data-pkey="'+escHtml(p.key)+'" style="'+(isChecked?'outline:2px solid var(--or)':'')+'" onclick="if(!event.target.classList.contains(\'pdb-cb\'))openPdbModal(this.dataset.pkey)">'
+      +'<div class="pdb-card-img">'+img+'</div>'
+      +'<label onclick="event.stopPropagation()" style="position:absolute;top:8px;left:8px;z-index:10;cursor:pointer">'
+      +'<input type="checkbox" class="pdb-cb" data-key="'+escHtml(p.key)+'" '+(isChecked?'checked':'')+' onchange="_pdbToggle(this.dataset.key,this)" style="width:16px;height:16px;accent-color:var(--or);cursor:pointer"></label>'
+      +(p.imageUrl&&p.imageUrl.startsWith('http')?'<div style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,.55);color:white;font-size:9px;padding:2px 6px;border-radius:10px">📌 własne</div>':'')
+      +'<div class="pdb-card-body">'
+      +(p.sku?'<div class="pdb-sku">'+escHtml(p.sku)+'</div>':'')
+      +'<div class="pdb-name">'+escHtml(p.name)+'</div>'
+      +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
+      +'<div class="pdb-price">'+p.lastPrice.toFixed(2)+' '+(p.currency||'PLN')+'/szt.</div>'
+      +diffHtml
+      +'</div>'
+      +'<div class="pdb-meta">'
+      +(p.hs?'<span style="font-family:monospace;font-size:9px;color:var(--blue)">'+escHtml(p.hs)+'</span> · ':'')
+      +hist.length+' wycen'+(hist.length===1?'a':hist.length<5?'y':'')
+      +' · ostatnia: '+escHtml(p.lastDate||'')
+      +'</div></div></div>';
   }).join('')+'</div>';
 }
 
