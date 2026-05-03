@@ -1343,6 +1343,16 @@ function showStorageWarning(msg){
   el.innerHTML=msg+'<button onclick="this.parentElement.remove()" style="display:block;margin-top:6px;background:rgba(255,255,255,.2);border:none;color:white;border-radius:4px;padding:3px 10px;cursor:pointer;font-size:11px">OK</button>';
 }
 
+function applyCustomImagesFromDB(products){
+  const db=getProductsDB();
+  return products.map(p=>{
+    const key=p.sku?('sku:'+p.sku):('name:'+p.name);
+    const dbEntry=db.find(x=>x.key===key);
+    if(dbEntry&&dbEntry.customImage&&dbEntry.imageUrl) return Object.assign({},p,{imageUrl:dbEntry.imageUrl});
+    return p;
+  });
+}
+
 function saveQuote(){
   const nameEl=g('qname'),name=(nameEl.value||'').trim();
   if(!name){nameEl.style.border='.5px solid #E24B4A';nameEl.focus();return}
@@ -1351,7 +1361,7 @@ function saveQuote(){
   const quotes=getQuotes();
   const snap={
     id:Date.now(),name,date:new Date().toISOString().split('T')[0],note:g('qn').value,
-    products:JSON.parse(JSON.stringify(ps)),
+    products:applyCustomImagesFromDB(JSON.parse(JSON.stringify(ps))),
     settings:{ct:g('ct').value,cv:gn('cv'),fr:gn('fr'),cu:cur(),ra:rate(),kc:gn('kc'),kp:gn('kp'),kl:gn('kl'),ki:gn('ki'),ko:gn('ko'),du:getDuty(),va:getVAT(),splitMode,shipCNisCNY},
     totalCost:ps.reduce((s,p)=>s+calc(p,ps).tot,0),currency:cur()
   };
@@ -1371,7 +1381,7 @@ function saveDraftQuote(){
   const quotes=getQuotes();
   const snap={
     id:Date.now(),name,date:new Date().toISOString().split('T')[0],note:g('qn').value,
-    products:JSON.parse(JSON.stringify(ps)),
+    products:applyCustomImagesFromDB(JSON.parse(JSON.stringify(ps))),
     settings:{ct:g('ct').value,cv:gn('cv'),fr:gn('fr'),cu:cur(),ra:rate(),kc:gn('kc'),kp:gn('kp'),kl:gn('kl'),ki:gn('ki'),ko:gn('ko'),du:getDuty(),va:getVAT(),splitMode,shipCNisCNY},
     totalCost:ps.reduce((s,p)=>s+calc(p,ps).tot,0),currency:cur(),
     draft:true
@@ -1388,9 +1398,13 @@ function loadQuote(id){
   // Merge saved thumbnails with current session images (current session wins if available)
   const currentImgMap={};
   ps.forEach(p=>{if(p.imageUrl&&p.sku)currentImgMap[p.sku]=p.imageUrl;if(p.imageUrl&&p.name)currentImgMap[p.name]=p.imageUrl;});
+  // Build custom image map from products DB (customImage=true takes highest priority)
+  const customImgMap={};
+  getProductsDB().forEach(d=>{if(d.customImage&&d.imageUrl){if(d.sku)customImgMap['sku:'+d.sku]=d.imageUrl;customImgMap['name:'+d.name]=d.imageUrl;}});
   ps=q.products.map(p=>{
+    const customImg=customImgMap['sku:'+p.sku]||customImgMap['name:'+p.name]||'';
     const sessionImg=currentImgMap[p.sku]||currentImgMap[p.name]||'';
-    return {...p, imageUrl: sessionImg||p.imageUrl||''};
+    return {...p, imageUrl: customImg||sessionImg||p.imageUrl||''};
   });
   const s=q.settings||{};
   ['ct','cv','fr','cu','ra','kc','kp','kl','ki','ko','du','va'].forEach(k=>{if(s[k]!==undefined&&g(k))g(k).value=s[k];});
