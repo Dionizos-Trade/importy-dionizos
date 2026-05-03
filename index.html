@@ -2305,7 +2305,7 @@ function exportPDF(){
   const win=window.open('','_blank');
   if(!win){alert('Przeglądarka zablokowała okno popup. Zezwól na wyskakujące okna dla tej strony i spróbuj ponownie.');return;}
   win.document.open();win.document.write(html);win.document.close();
-  // Auto-trigger print after images load (called from opener to avoid </script> inside template literal)
+  // Auto-trigger print after images load
   win.addEventListener('load',()=>setTimeout(()=>{ try{win.print();}catch(e){} },600));
 }
 
