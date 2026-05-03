@@ -2612,7 +2612,6 @@ setTimeout(updateStorageBar,300);
       await initFirebase(cfg,ws);
       fbSaveLocalConfig(cfg,ws);
       fbStartRealtime();
-      await sbPushSilent();
       updateMobSettingsDot();
       console.log('Firebase auto-connect OK:', ws);
     }catch(e){console.warn('Firebase auto-connect error',e);}
