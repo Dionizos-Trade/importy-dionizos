@@ -260,6 +260,39 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
 .tri-desc{font-size:11px;margin-top:2px}
 .tri-duty{font-size:10px;color:var(--or);font-weight:600;margin-top:2px}
 .mult-box{display:none;margin-top:7px;background:var(--orl);border:.5px solid var(--orm);border-radius:6px;padding:8px 10px}
+/* DOSTAWY */
+.del-card{background:var(--color-background-primary,#fff);border:.5px solid var(--color-border-tertiary,#e0dedd);border-radius:10px;padding:14px 16px;margin-bottom:8px;cursor:pointer;transition:box-shadow .15s}
+.del-card:hover{box-shadow:0 2px 12px rgba(0,0,0,.08);border-color:var(--or)}
+.del-card-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;gap:8px}
+.del-card-name{font-size:13px;font-weight:600}
+.del-card-meta{font-size:10px;color:var(--color-text-secondary,#6b6b6b);margin-top:2px}
+.del-timeline{display:flex;align-items:flex-start;position:relative}
+.del-step{flex:1;display:flex;flex-direction:column;align-items:center;position:relative}
+.del-step:not(:last-child)::after{content:'';position:absolute;top:10px;left:50%;width:100%;height:2px;background:var(--color-border-tertiary,#e0dedd);z-index:0}
+.del-step.done:not(:last-child)::after{background:var(--green)}
+.del-step-dot{width:22px;height:22px;border-radius:50%;border:2px solid var(--color-border-tertiary,#e0dedd);background:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;z-index:1;position:relative;flex-shrink:0}
+.del-step.done .del-step-dot{border-color:var(--green);background:var(--green);color:white}
+.del-step.active .del-step-dot{border-color:var(--or);background:var(--orl);color:var(--or)}
+.del-step-label{font-size:9px;color:var(--color-text-secondary,#6b6b6b);margin-top:4px;text-align:center;line-height:1.3}
+.del-step.done .del-step-label{color:var(--green);font-weight:600}
+.del-step.active .del-step-label{color:var(--or);font-weight:600}
+.del-filters{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+.del-filter-btn{height:28px;padding:0 12px;font-size:11px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:14px;cursor:pointer;background:transparent;transition:all .15s;white-space:nowrap}
+.del-filter-btn.on{background:var(--or);color:white;border-color:var(--or)}
+.del-modal{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:600;display:flex;align-items:center;justify-content:center;padding:16px}
+.del-form{background:var(--color-background-primary,#fff);border-radius:12px;max-width:520px;width:100%;max-height:92vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,.22)}
+.del-form-head{padding:14px 16px;border-bottom:.5px solid var(--color-border-tertiary,#e0dedd);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;position:sticky;top:0;background:var(--color-background-primary,#fff);z-index:2}
+.del-form-body{padding:14px 16px}
+.del-form-row{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:9px}
+.del-form-foot{padding:10px 16px;border-top:.5px solid var(--color-border-tertiary,#e0dedd);display:flex;gap:8px;justify-content:flex-end;position:sticky;bottom:0;background:var(--color-background-primary,#fff)}
+.del-fi{font-size:9px;font-weight:600;color:var(--color-text-secondary,#6b6b6b);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:3px}
+.del-inp{width:100%;height:30px;font-size:12px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:6px;padding:0 8px;background:var(--color-background-primary,#fff);color:var(--color-text-primary,#1a1a1a)}
+.del-inp:focus{outline:none;border-color:var(--or)}
+.del-status-opt{height:28px;padding:0 11px;font-size:11px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:14px;cursor:pointer;background:transparent;transition:all .15s;white-space:nowrap}
+.del-status-opt.on{background:var(--or);color:white;border-color:var(--or)}
+.qcard-delivery{background:#EEF3FA;border:.5px solid #c5d9f2;color:var(--blue);font-size:10px;font-weight:600;border-radius:5px;padding:3px 9px;cursor:pointer;white-space:nowrap;margin-right:2px}
+.qcard-delivery:hover{background:var(--blue);color:white}
+@media(max-width:640px){.del-form-row{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -277,6 +310,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
     <button class="tnav" onclick="sv('quotes')">💾 Wyceny</button>
     <button class="tnav" onclick="sv('products')">📦 Produkty</button>
     <button class="tnav" onclick="sv('hs')">🏷️ Kody HS</button>
+    <button class="tnav" onclick="sv('deliveries')">🚢 Dostawy</button>
   </div>
 </div>
 
@@ -527,6 +561,81 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
 
 
 
+<!-- DOSTAWY -->
+<div class="fullview" id="vdeliveries">
+  <div style="max-width:780px;width:100%">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+      <div style="font-size:14px;font-weight:700">🚢 Dostawy</div>
+      <button onclick="openNewDeliveryForm()" style="height:30px;padding:0 14px;font-size:11px;border:none;border-radius:6px;cursor:pointer;font-weight:500;background:var(--or);color:white">+ Nowa dostawa</button>
+    </div>
+    <div class="del-filters">
+      <input id="del-search" placeholder="🔍 Szukaj po nazwie, AWB, przewoźniku…" oninput="renderDeliveries()" style="flex:1;min-width:180px;height:30px;font-size:11px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:6px;padding:0 9px;background:var(--color-background-primary,#fff);color:var(--color-text-primary,#1a1a1a)">
+      <button class="del-filter-btn on" id="del-f-all" onclick="setDelFilter('all')">Wszystkie</button>
+      <button class="del-filter-btn" id="del-f-ordered" onclick="setDelFilter('ordered')">📋 Zamówione</button>
+      <button class="del-filter-btn" id="del-f-transit" onclick="setDelFilter('transit')">🚢 W drodze</button>
+      <button class="del-filter-btn" id="del-f-customs" onclick="setDelFilter('customs')">🏛️ Odprawa</button>
+      <button class="del-filter-btn" id="del-f-delivered" onclick="setDelFilter('delivered')">✅ Dostarczone</button>
+    </div>
+    <div id="deliveries-list"></div>
+  </div>
+</div>
+
+<!-- DELIVERY FORM MODAL -->
+<div class="del-modal" id="del-modal" style="display:none" onclick="if(event.target===this)closeDeliveryModal()">
+  <div class="del-form">
+    <div class="del-form-head">
+      <div>
+        <div style="font-size:13px;font-weight:600" id="del-modal-title">Nowa dostawa</div>
+        <div style="font-size:10px;color:var(--color-text-secondary,#6b6b6b)" id="del-modal-sub">Wypełnij dane dostawy</div>
+      </div>
+      <button onclick="closeDeliveryModal()" style="border:none;background:transparent;cursor:pointer;font-size:18px;color:var(--color-text-secondary,#6b6b6b);line-height:1;padding:2px 6px">✕</button>
+    </div>
+    <div class="del-form-body">
+      <input type="hidden" id="del-edit-id">
+      <div style="margin-bottom:9px">
+        <label class="del-fi">Nazwa dostawy</label>
+        <input class="del-inp" type="text" id="del-name" placeholder="np. Koleja — Q2 2026" style="width:100%">
+      </div>
+      <div class="del-form-row">
+        <div><label class="del-fi">Data zamówienia</label><input class="del-inp" type="date" id="del-order-date" style="width:100%"></div>
+        <div><label class="del-fi">Wartość (PLN)</label><input class="del-inp" type="number" id="del-value" min="0" step="1" placeholder="0" style="width:100%"></div>
+      </div>
+      <div class="del-form-row">
+        <div><label class="del-fi">Szac. ETD (załadunek)</label><input class="del-inp" type="date" id="del-etd" style="width:100%"></div>
+        <div><label class="del-fi">Szac. ETA (dostawa PL)</label><input class="del-inp" type="date" id="del-eta" style="width:100%"></div>
+      </div>
+      <div class="del-form-row">
+        <div><label class="del-fi">Przewoźnik</label><input class="del-inp" type="text" id="del-carrier" placeholder="np. COSCO, MSC, Maersk" style="width:100%"></div>
+        <div><label class="del-fi">AWB / B/L nr</label><input class="del-inp" type="text" id="del-awb" placeholder="np. COSU12345678" style="width:100%"></div>
+      </div>
+      <div style="margin-bottom:9px">
+        <label class="del-fi">Link śledzenia przesyłki</label>
+        <div style="display:flex;gap:5px">
+          <input class="del-inp" type="url" id="del-tracking-url" oninput="updateTrackingTestBtn()" placeholder="https://…" style="flex:1">
+          <a id="del-tracking-test" href="#" target="_blank" style="display:none;height:30px;padding:0 11px;font-size:11px;border:.5px solid var(--blue);border-radius:6px;background:#EEF3FA;color:var(--blue);text-decoration:none;align-items:center;white-space:nowrap;flex-shrink:0">🔗 Test</a>
+        </div>
+      </div>
+      <div style="margin-bottom:10px">
+        <label class="del-fi">Notatki</label>
+        <textarea class="del-inp" id="del-notes" placeholder="Opcjonalne notatki…" rows="2" style="height:auto;min-height:52px;padding:6px 8px;resize:vertical;width:100%"></textarea>
+      </div>
+      <div>
+        <div style="font-size:9px;font-weight:600;color:var(--color-text-secondary,#6b6b6b);text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px">Status</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="del-status-opt on" data-status="ordered" onclick="selectDelStatus(this)">📋 Zamówione</button>
+          <button class="del-status-opt" data-status="transit" onclick="selectDelStatus(this)">🚢 W drodze</button>
+          <button class="del-status-opt" data-status="customs" onclick="selectDelStatus(this)">🏛️ Odprawa celna</button>
+          <button class="del-status-opt" data-status="delivered" onclick="selectDelStatus(this)">✅ Dostarczone</button>
+        </div>
+      </div>
+    </div>
+    <div class="del-form-foot">
+      <button onclick="closeDeliveryModal()" style="height:32px;padding:0 14px;font-size:12px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:6px;cursor:pointer;background:transparent">Anuluj</button>
+      <button onclick="saveDeliveryForm()" style="height:32px;padding:0 16px;font-size:12px;border:none;border-radius:6px;cursor:pointer;font-weight:500;background:var(--or);color:white">💾 Zapisz dostawę</button>
+    </div>
+  </div>
+</div>
+
 <!-- PRODUCT DETAIL MODAL -->
 <div class="pdb-modal" id="pdb-modal">
   <div class="pdb-detail">
@@ -664,8 +773,8 @@ function escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt
 
 // ═══ VIEWS ═══
 function sv(v){
-  const map={calc:'vc',import:'vim',sim:'vsim',quotes:'vquotes',products:'vproducts',hs:'vhs'};
-  const order=['calc','import','sim','quotes','products','hs'];
+  const map={calc:'vc',import:'vim',sim:'vsim',quotes:'vquotes',products:'vproducts',hs:'vhs',deliveries:'vdeliveries'};
+  const order=['calc','import','sim','quotes','products','hs','deliveries'];
   Object.entries(map).forEach(([k,id])=>{
     const el=g(id);if(el)el.style.display=k===v?(k==='calc'?'flex':'flex'):'none';
   });
@@ -674,6 +783,7 @@ function sv(v){
   if(v==='quotes')renderQuotes();
   if(v==='products')renderProductsDB();
   if(v==='hs')renderHS();
+  if(v==='deliveries')renderDeliveries();
   // Sync mobile bottom nav
   const mobMap={calc:'mn-calc',import:'mn-import',quotes:'mn-quotes',products:'mn-products'};
   Object.entries(mobMap).forEach(([k,id])=>{
@@ -1458,6 +1568,7 @@ function renderQuotes(){
     <div class="qcard-dot" style="${q.draft?'background:#7f8c8d':''}">${(q.name||'W').charAt(0).toUpperCase()}</div>
     <div class="qcard-body"><div class="qcard-name">${escHtml(q.name)}${q.draft?' <span style="font-size:9px;background:#7f8c8d;color:#fff;border-radius:3px;padding:1px 5px;font-weight:700;vertical-align:middle;letter-spacing:.03em">ROBOCZA</span>':''}</div><div class="qcard-meta">${q.date} · ${(q.products||[]).length} produktów${q.note?' · '+escHtml(q.note):''}</div></div>
     <div class="qcard-price">${q.totalCost?q.totalCost.toFixed(0)+' '+q.currency:''}</div>
+    ${q.draft?`<button class="qcard-delivery" onclick="createDeliveryFromQuote(${q.id},event)" title="Utwórz dostawę z tej wyceny">🚢 Utwórz dostawę</button>`:''}
     <button class="qcard-del" onclick="deleteQuote(${q.id},event)" title="Usuń">🗑</button>
   </div>`).join('');
 }
@@ -2871,6 +2982,161 @@ async function fbRemoveCalcProduct(p){if(fbIsReady()&&p&&p._id)await fbRoot('cal
 async function fbRemoveQuote(id){if(fbIsReady())await fbRoot('quotes/'+_safeKey(id)).remove();}
 async function fbRemoveProductDB(key){if(fbIsReady())await fbRoot('products/'+_safeKey(key)).remove();}
 async function fbRemoveHS(h){if(fbIsReady()&&h)await fbRoot('hsdb/'+_hsKey(h)).remove();}
+// ═══ DOSTAWY ═══
+let delFilterStatus='all';
+
+function getDeliveries(){try{return JSON.parse(localStorage.getItem('icalc_deliveries')||'[]');}catch{return[];}}
+function setDeliveries(arr){try{localStorage.setItem('icalc_deliveries',JSON.stringify(arr));}catch(e){alert('Błąd zapisu dostaw — brak miejsca w localStorage.');}}
+
+function setDelFilter(f){
+  delFilterStatus=f;
+  ['all','ordered','transit','customs','delivered'].forEach(s=>{const b=g('del-f-'+s);if(b)b.classList.toggle('on',s===f);});
+  renderDeliveries();
+}
+
+function renderDeliveries(){
+  const el=g('deliveries-list');if(!el)return;
+  const deliveries=getDeliveries();
+  const q=((g('del-search')?g('del-search').value:'')||'').toLowerCase().trim();
+  let filtered=deliveries;
+  if(delFilterStatus!=='all')filtered=filtered.filter(d=>d.status===delFilterStatus);
+  if(q)filtered=filtered.filter(d=>(d.name||'').toLowerCase().includes(q)||(d.awb||'').toLowerCase().includes(q)||(d.carrier||'').toLowerCase().includes(q));
+  if(!filtered.length){
+    el.innerHTML='<div style="text-align:center;padding:44px 20px;color:var(--color-text-secondary,#6b6b6b)"><div style="font-size:34px;margin-bottom:8px">🚢</div><div style="font-size:13px;font-weight:500">Brak dostaw</div><div style="margin-top:5px;font-size:11px">Utwórz dostawę z wyceny roboczej lub kliknij "+ Nowa dostawa".</div></div>';
+    return;
+  }
+  const STATUSES=['ordered','transit','customs','delivered'];
+  const S_LABEL={ordered:'Zamówione',transit:'W drodze',customs:'Odprawa celna',delivered:'Dostarczone'};
+  const S_EMOJI={ordered:'📋',transit:'🚢',customs:'🏛️',delivered:'✅'};
+  const S_NEXT_LABEL={ordered:'📋→🚢 W drodze',transit:'🚢→🏛️ Odprawa',customs:'🏛️→✅ Dostarczone'};
+
+  el.innerHTML=filtered.map(d=>{
+    const si=STATUSES.indexOf(d.status||'ordered');
+    const steps=STATUSES.map((s,i)=>{
+      const done=i<si,active=i===si;
+      const cls=done?'done':active?'active':'';
+      return `<div class="del-step ${cls}"><div class="del-step-dot">${S_EMOJI[s]}</div><div class="del-step-label">${S_LABEL[s]}</div></div>`;
+    }).join('');
+    const nextStatus=si<STATUSES.length-1?STATUSES[si+1]:null;
+    const datesRow=(d.etd||d.eta)?`<div style="margin-top:8px;font-size:10px;color:var(--color-text-secondary,#6b6b6b);display:flex;gap:16px;flex-wrap:wrap">${d.etd?'<span>📦 ETD: <strong>'+d.etd+'</strong></span>':''}${d.eta?'<span>🏁 ETA: <strong>'+d.eta+'</strong></span>':''}</div>`:'';
+    const notesRow=d.notes?`<div style="margin-top:6px;font-size:10px;color:var(--color-text-secondary,#6b6b6b);border-top:.5px solid var(--color-border-tertiary,#e0dedd);padding-top:6px">${escHtml(d.notes)}</div>`:'';
+    return `<div class="del-card" onclick="openDeliveryModal(${d.id})">
+      <div class="del-card-header">
+        <div style="flex:1;min-width:0">
+          <div class="del-card-name">${escHtml(d.name)}</div>
+          <div class="del-card-meta">${d.orderDate?d.orderDate:''}${d.carrier?' · '+escHtml(d.carrier):''}${d.awb?' · AWB: '+escHtml(d.awb):''}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+          ${d.value?`<div style="font-size:13px;font-weight:600;color:var(--or)">${Math.round(d.value).toLocaleString('pl-PL')} ${d.currency||'PLN'}</div>`:''}
+          ${d.trackingUrl?`<a href="${escHtml(d.trackingUrl)}" target="_blank" onclick="event.stopPropagation()" title="Śledź przesyłkę" style="height:28px;padding:0 10px;font-size:11px;border:.5px solid var(--blue);border-radius:6px;background:#EEF3FA;color:var(--blue);text-decoration:none;display:inline-flex;align-items:center;white-space:nowrap;font-weight:600">🔗 Śledź</a>`:''}
+          <button onclick="event.stopPropagation();deleteDelivery(${d.id},event)" style="border:none;background:transparent;cursor:pointer;font-size:15px;color:#ccc;padding:3px 5px;border-radius:4px" title="Usuń" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='#ccc'">🗑</button>
+        </div>
+      </div>
+      <div class="del-timeline">${steps}</div>
+      ${datesRow}
+      ${notesRow}
+      ${nextStatus?`<div style="margin-top:9px"><button onclick="event.stopPropagation();quickUpdateStatus(${d.id},'${nextStatus}')" style="height:26px;padding:0 13px;font-size:11px;border:none;border-radius:13px;cursor:pointer;background:var(--green);color:white;font-weight:500">→ ${S_NEXT_LABEL[d.status||'ordered']}</button></div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function quickUpdateStatus(id,status){
+  const arr=getDeliveries();const d=arr.find(x=>x.id===id);if(!d)return;
+  d.status=status;if(!d.statusHistory)d.statusHistory=[];
+  d.statusHistory.push({status,date:new Date().toISOString().split('T')[0]});
+  setDeliveries(arr);renderDeliveries();
+}
+
+function deleteDelivery(id,e){
+  if(e)e.stopPropagation();if(!confirm('Usunąć tę dostawę?'))return;
+  setDeliveries(getDeliveries().filter(x=>x.id!==id));renderDeliveries();
+}
+
+function openNewDeliveryForm(prefill){
+  const modal=g('del-modal');if(!modal)return;
+  g('del-edit-id').value='';
+  g('del-modal-title').textContent='Nowa dostawa';
+  g('del-modal-sub').textContent='Wypełnij dane dostawy';
+  ['del-name','del-order-date','del-value','del-etd','del-eta','del-carrier','del-awb','del-tracking-url','del-notes'].forEach(id=>{const el=g(id);if(el)el.value='';});
+  document.querySelectorAll('.del-status-opt').forEach(b=>b.classList.toggle('on',b.dataset.status==='ordered'));
+  if(prefill){
+    if(g('del-name'))g('del-name').value=prefill.name||'';
+    if(g('del-order-date'))g('del-order-date').value=prefill.date||'';
+    if(g('del-value')&&prefill.value)g('del-value').value=Math.round(prefill.value);
+    if(g('del-etd')&&prefill.etd)g('del-etd').value=prefill.etd;
+    if(g('del-eta')&&prefill.eta)g('del-eta').value=prefill.eta;
+    g('del-modal-sub').textContent='Wstępnie wypełniono z wyceny: '+(prefill.name||'');
+  }
+  updateTrackingTestBtn();
+  modal.style.display='flex';
+  if(g('del-name'))g('del-name').focus();
+}
+
+function openDeliveryModal(id){
+  const arr=getDeliveries();const d=arr.find(x=>x.id===id);if(!d)return;
+  const modal=g('del-modal');if(!modal)return;
+  g('del-edit-id').value=id;
+  g('del-modal-title').textContent='Edytuj dostawę';
+  g('del-modal-sub').textContent=escHtml(d.name);
+  if(g('del-name'))g('del-name').value=d.name||'';
+  if(g('del-order-date'))g('del-order-date').value=d.orderDate||'';
+  if(g('del-value'))g('del-value').value=d.value?Math.round(d.value):'';
+  if(g('del-etd'))g('del-etd').value=d.etd||'';
+  if(g('del-eta'))g('del-eta').value=d.eta||'';
+  if(g('del-carrier'))g('del-carrier').value=d.carrier||'';
+  if(g('del-awb'))g('del-awb').value=d.awb||'';
+  if(g('del-tracking-url'))g('del-tracking-url').value=d.trackingUrl||'';
+  if(g('del-notes'))g('del-notes').value=d.notes||'';
+  document.querySelectorAll('.del-status-opt').forEach(b=>b.classList.toggle('on',b.dataset.status===(d.status||'ordered')));
+  updateTrackingTestBtn();
+  modal.style.display='flex';
+}
+
+function closeDeliveryModal(){const modal=g('del-modal');if(modal)modal.style.display='none';}
+
+function selectDelStatus(btn){
+  document.querySelectorAll('.del-status-opt').forEach(b=>b.classList.remove('on'));btn.classList.add('on');
+}
+
+function updateTrackingTestBtn(){
+  const url=((g('del-tracking-url')?g('del-tracking-url').value:'')||'').trim();
+  const btn=g('del-tracking-test');if(!btn)return;
+  if(url){btn.href=url;btn.style.display='inline-flex';}else{btn.style.display='none';}
+}
+
+function saveDeliveryForm(){
+  const name=(g('del-name').value||'').trim();
+  if(!name){g('del-name').focus();g('del-name').style.border='.5px solid #E24B4A';return;}
+  g('del-name').style.border='';
+  const editIdRaw=g('del-edit-id').value;
+  const editId=editIdRaw&&!isNaN(editIdRaw)?parseInt(editIdRaw):null;
+  const selStatus=document.querySelector('.del-status-opt.on');
+  const status=selStatus?selStatus.dataset.status:'ordered';
+  const arr=getDeliveries();
+  if(editId){
+    const d=arr.find(x=>x.id===editId);
+    if(d){
+      d.name=name;d.orderDate=g('del-order-date').value;d.value=parseFloat(g('del-value').value)||0;
+      d.etd=g('del-etd').value;d.eta=g('del-eta').value;d.carrier=g('del-carrier').value;
+      d.awb=g('del-awb').value;d.trackingUrl=g('del-tracking-url').value;d.notes=g('del-notes').value;
+      if(d.status!==status){d.status=status;if(!d.statusHistory)d.statusHistory=[];d.statusHistory.push({status,date:new Date().toISOString().split('T')[0]});}
+    }
+  }else{
+    arr.unshift({id:Date.now(),name,orderDate:g('del-order-date').value,value:parseFloat(g('del-value').value)||0,currency:'PLN',etd:g('del-etd').value,eta:g('del-eta').value,carrier:g('del-carrier').value,awb:g('del-awb').value,trackingUrl:g('del-tracking-url').value,notes:g('del-notes').value,status,statusHistory:[{status,date:new Date().toISOString().split('T')[0]}]});
+  }
+  setDeliveries(arr);closeDeliveryModal();renderDeliveries();
+}
+
+function createDeliveryFromQuote(qid,e){
+  if(e)e.stopPropagation();
+  const q=getQuotes().find(x=>x.id===qid);if(!q)return;
+  const orderDate=q.date||new Date().toISOString().split('T')[0];
+  const etdDate=new Date(orderDate);etdDate.setDate(etdDate.getDate()+7);
+  const etaDate=new Date(orderDate);etaDate.setDate(etaDate.getDate()+42);
+  sv('deliveries');
+  openNewDeliveryForm({name:q.name,date:orderDate,value:q.totalCost||0,etd:etdDate.toISOString().split('T')[0],eta:etaDate.toISOString().split('T')[0],quoteId:q.id});
+}
+
 // ═══ INIT ═══
 g('qd').value=new Date().toISOString().split('T')[0];
 loadHSDB();
