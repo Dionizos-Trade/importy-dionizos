@@ -1599,13 +1599,21 @@ function renderQuotes(){
     el.innerHTML='<div class="q-empty"><div style="font-size:32px;margin-bottom:9px">💾</div><div>Brak zapisanych wycen.</div><div style="margin-top:5px;font-size:11px">Użyj pola "Zapisz wycenę" w lewym panelu kalkulatora.</div></div>';
     return;
   }
-  el.innerHTML=quotes.map(q=>`<div class="qcard${q.draft?' qcard-draft':''}" onclick="loadQuote(${q.id})">
+  const deliveries=getDeliveries();
+  el.innerHTML=quotes.map(q=>{
+    const existingDel=q.draft?deliveries.find(d=>d.quoteId===q.id):null;
+    const deliveryBtn=q.draft?(existingDel?
+      `<button class="qcard-delivery" onclick="viewQuoteDelivery(${existingDel.id},event)" title="Przejdź do powiązanej dostawy" style="background:#EAF3DE;border-color:#b2dfdb;color:#1D9E75">👁 Podgląd dostawy</button>`:
+      `<button class="qcard-delivery" onclick="createDeliveryFromQuote(${q.id},event)" title="Utwórz dostawę z tej wyceny">🚢 Utwórz dostawę</button>`
+    ):'';
+    return `<div class="qcard${q.draft?' qcard-draft':''}" onclick="loadQuote(${q.id})">
     <div class="qcard-dot" style="${q.draft?'background:#7f8c8d':''}">${(q.name||'W').charAt(0).toUpperCase()}</div>
     <div class="qcard-body"><div class="qcard-name">${escHtml(q.name)}${q.draft?' <span style="font-size:9px;background:#7f8c8d;color:#fff;border-radius:3px;padding:1px 5px;font-weight:700;vertical-align:middle;letter-spacing:.03em">ROBOCZA</span>':''}</div><div class="qcard-meta">${q.date} · ${(q.products||[]).length} produktów${q.note?' · '+escHtml(q.note):''}</div></div>
     <div class="qcard-price">${q.totalCost?q.totalCost.toFixed(0)+' '+q.currency:''}</div>
-    ${q.draft?`<button class="qcard-delivery" onclick="createDeliveryFromQuote(${q.id},event)" title="Utwórz dostawę z tej wyceny">🚢 Utwórz dostawę</button>`:''}
+    ${deliveryBtn}
     <button class="qcard-del" onclick="deleteQuote(${q.id},event)" title="Usuń">🗑</button>
-  </div>`).join('');
+  </div>`;
+  }).join('');
 }
 
 // ═══ HS DATABASE ═══
@@ -3098,8 +3106,8 @@ function renderDeliveries(){
       }
     }
 
-    // Linked quote
-    const quoteLink=d.quoteName?`<div style="margin-top:7px;font-size:10px;color:var(--blue);display:flex;align-items:center;gap:5px">📋 <span style="font-weight:500">Wycena:</span> ${escHtml(d.quoteName)}<button onclick="event.stopPropagation();previewQuoteById(${d.quoteId})" style="height:20px;padding:0 7px;font-size:10px;border:.5px solid var(--blue);border-radius:4px;background:#EEF3FA;color:var(--blue);cursor:pointer;margin-left:2px">📋 Zobacz</button></div>`:'';
+    // Linked quote — shown in header left column
+    const quoteLink=d.quoteName?`<div style="font-size:10px;color:var(--blue);display:inline-flex;align-items:center;gap:5px;margin-top:4px;background:#EEF3FA;border:.5px solid #c5d9f2;border-radius:5px;padding:2px 8px 2px 6px">📋 <span style="font-weight:600">${escHtml(d.quoteName)}</span><button onclick="event.stopPropagation();previewQuoteById(${d.quoteId})" style="height:16px;padding:0 6px;font-size:9px;border:.5px solid var(--blue);border-radius:3px;background:white;color:var(--blue);cursor:pointer;font-weight:600;margin-left:2px">Zobacz</button></div>`:'';
 
     const datesRow=(d.etd||d.eta)?`<div style="margin-top:8px;font-size:10px;color:var(--color-text-secondary,#6b6b6b);display:flex;gap:16px;flex-wrap:wrap">${d.etd?'<span>📦 ETD: <strong>'+d.etd+'</strong></span>':''}${d.eta?'<span>🏁 ETA: <strong>'+d.eta+'</strong></span>':''}</div>`:'';
     const notesRow=d.notes?`<div style="margin-top:6px;font-size:10px;color:var(--color-text-secondary,#6b6b6b);border-top:.5px solid var(--color-border-tertiary,#e0dedd);padding-top:6px">${escHtml(d.notes)}</div>`:'';
@@ -3109,6 +3117,7 @@ function renderDeliveries(){
         <div style="flex:1;min-width:0">
           <div class="del-card-name">${escHtml(d.name)}</div>
           <div class="del-card-meta">${d.orderDate?d.orderDate:''}${d.carrier?' · '+escHtml(d.carrier):''}${d.awb?' · AWB: '+escHtml(d.awb):''}</div>
+          ${quoteLink}
         </div>
         <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end">
           ${etaBadge}
@@ -3119,7 +3128,6 @@ function renderDeliveries(){
       </div>
       <div class="del-timeline">${steps}</div>
       ${datesRow}
-      ${quoteLink}
       ${customsWarn}
       ${notesRow}
       ${nextStatus?`<div style="margin-top:9px"><button onclick="event.stopPropagation();quickUpdateStatus(${d.id},'${nextStatus}')" style="height:26px;padding:0 13px;font-size:11px;border:none;border-radius:13px;cursor:pointer;background:var(--green);color:white;font-weight:500">→ ${S_NEXT_LABEL[d.status||'ordered']}</button></div>`:''}
@@ -3255,6 +3263,47 @@ function openDeliveryQuotePreview(){
   previewQuoteById(qid);
 }
 
+function viewQuoteDelivery(deliveryId,e){
+  if(e)e.stopPropagation();
+  sv('deliveries');
+  setTimeout(()=>openDeliveryModal(deliveryId),120);
+}
+
+function _calcWithSettings(p,all,s){
+  const r=parseFloat(s.ra)||0.57;
+  const ctv=String(s.ct||'68');
+  const v=ctv==='0'?(parseFloat(s.cv)||68):(parseFloat(ctv)||68);
+  const f=parseFloat(s.fr)||0;
+  const sh=(parseFloat(s.kc)||0)+(parseFloat(s.kp)||0)+(parseFloat(s.kl)||0)+(parseFloat(s.ki)||0)+(parseFloat(s.ko)||0);
+  const sm=s.splitMode||'cbm';
+  const isCNY=s.shipCNisCNY!==false;
+  const q2=Math.max(p.qty||0,1);
+  const pCNY=parseFloat(p.priceCNY)||0;
+  const dr=(p.duty!==null&&p.duty!==undefined&&p.duty!==''?parseFloat(p.duty):(parseFloat(s.du)||0))/100;
+  const vr=(parseFloat(s.va)||23)/100;
+  const cbm=parseFloat(p.cbm)||0;
+  const ex=parseFloat(p.extraCosts)||0;
+  const rawSCN=parseFloat(p.shipCN)||0;
+  const scn=isCNY?rawSCN*r:rawSCN;
+  const fpm=v>0?f/v:0;
+  const frs=cbm*fpm;
+  const pv=q2*pCNY*r;
+  if(sm==='value'){
+    const tp=all.reduce((a,p2)=>a+Math.max(p2.qty||0,1)*(parseFloat(p2.priceCNY)||0)*r,0);
+    const tc=all.reduce((a,p2)=>a+(parseFloat(p2.cbm)||0),0);
+    const ts2=all.reduce((a,p2)=>{const rw=parseFloat(p2.shipCN)||0;return a+(isCNY?rw*r:rw);},0);
+    const tf=tc*(v>0?f/v:0);
+    const cif2=tp+ts2+tf,da2=cif2*dr,vat2=(cif2+da2)*vr;
+    const mult=tp>0?(tp+ts2+tf+sh+da2+vat2)/tp:1;
+    return{pu:(pv*mult+ex)/q2};
+  }
+  let share=0;
+  if(sm==='cbm'){const tc=all.reduce((a,p2)=>a+(parseFloat(p2.cbm)||0),0);share=tc>0?cbm/tc:0;}
+  else{const tw=all.reduce((a,p2)=>a+(parseFloat(p2.weight)||0),0);share=tw>0?(parseFloat(p.weight)||0)/tw:0;}
+  const shs=sh*share,cif=pv+scn+frs,da=cif*dr,vat=(cif+da)*vr;
+  return{pu:(cif+shs+da+vat+ex)/q2};
+}
+
 function previewQuoteById(qid){
   const q=getQuotes().find(x=>x.id===qid);
   if(!q){alert('Wycena nie została znaleziona (mogła zostać usunięta).');return;}
@@ -3262,28 +3311,35 @@ function previewQuoteById(qid){
   g('dqp-title').textContent=q.name||'Wycena';
   g('dqp-meta').textContent=q.date+' · '+(q.products||[]).length+' produktów'+(q.note?' · '+q.note:'');
   const prods=q.products||[];
-  const totalCost=q.totalCost?q.totalCost.toFixed(2)+' '+(q.currency||'PLN'):'—';
-  const rows=prods.map(p=>`<tr>
+  const sets=q.settings||{};
+  const cu=sets.cu||q.currency||'PLN';
+  const totalCost=q.totalCost?q.totalCost.toFixed(2)+' '+cu:'—';
+  const rows=prods.map(p=>{
+    const res=_calcWithSettings(p,prods,sets);
+    const pu=res.pu;
+    return `<tr>
     <td style="padding:5px 8px">${p.imageUrl?`<img src="${escHtml(p.imageUrl)}" style="width:32px;height:32px;object-fit:cover;border-radius:4px;display:block">`:'<div style="width:32px;height:32px;background:var(--color-background-secondary,#f5f4f1);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:16px">📦</div>'}</td>
     <td style="padding:5px 8px;font-size:10px;font-family:monospace;color:var(--blue)">${escHtml(p.sku||'—')}</td>
-    <td style="padding:5px 8px;font-size:11px;font-weight:500;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(p.name||'—')}</td>
+    <td style="padding:5px 8px;font-size:11px;font-weight:500;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(p.name||'—')}</td>
     <td style="padding:5px 8px;text-align:right;font-size:11px">${p.qty||0}</td>
     <td style="padding:5px 8px;text-align:right;font-size:11px">¥${(parseFloat(p.priceCNY)||0).toFixed(2)}</td>
     <td style="padding:5px 8px;text-align:right;font-size:11px">${(parseFloat(p.cbm)||0).toFixed(4)} m³</td>
-    <td style="padding:5px 8px;text-align:right;font-size:11px;font-weight:600;color:var(--or)">${p.hs?escHtml(p.hs):'—'}</td>
-  </tr>`).join('');
-  const sets=q.settings||{};
+    <td style="padding:5px 8px;text-align:right;font-size:11px">${p.hs?escHtml(p.hs):'—'}</td>
+    <td style="padding:5px 8px;text-align:right;font-size:12px;font-weight:700;color:var(--or);white-space:nowrap">${pu?pu.toFixed(2)+' '+cu:'—'}</td>
+  </tr>`;
+  }).join('');
   g('dqp-body').innerHTML=`
     <div style="overflow-x:auto;margin-bottom:14px">
       <table style="width:100%;border-collapse:collapse;font-size:11px">
         <thead><tr style="background:var(--color-background-secondary,#f5f4f1)">
-          <th style="padding:5px 8px;text-align:left;font-size:9px;font-weight:600;color:var(--color-text-secondary,#6b6b6b);white-space:nowrap"></th>
+          <th style="padding:5px 8px;text-align:left;font-size:9px;font-weight:600;color:var(--color-text-secondary,#6b6b6b)"></th>
           <th style="padding:5px 8px;text-align:left;font-size:9px;font-weight:600;color:var(--color-text-secondary,#6b6b6b)">SKU</th>
           <th style="padding:5px 8px;text-align:left;font-size:9px;font-weight:600;color:var(--color-text-secondary,#6b6b6b)">Nazwa</th>
           <th style="padding:5px 8px;text-align:right;font-size:9px;font-weight:600;color:var(--color-text-secondary,#6b6b6b)">Ilość</th>
           <th style="padding:5px 8px;text-align:right;font-size:9px;font-weight:600;color:var(--color-text-secondary,#6b6b6b)">Cena CNY</th>
           <th style="padding:5px 8px;text-align:right;font-size:9px;font-weight:600;color:var(--color-text-secondary,#6b6b6b)">CBM</th>
           <th style="padding:5px 8px;text-align:right;font-size:9px;font-weight:600;color:var(--color-text-secondary,#6b6b6b)">HS</th>
+          <th style="padding:5px 8px;text-align:right;font-size:9px;font-weight:600;color:var(--or)">Koszt/szt</th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
