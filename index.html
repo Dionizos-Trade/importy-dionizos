@@ -1522,9 +1522,10 @@ function saveQuote(){
   nameEl.style.border='';
   if(!ps.length){alert('Dodaj produkty przed zapisaniem wyceny.');return}
   const quotes=getQuotes();
+  const snapProds=applyCustomImagesFromDB(JSON.parse(JSON.stringify(ps))).map(p=>({...p,_pu:calc(p,ps).pu}));
   const snap={
     id:Date.now(),name,date:new Date().toISOString().split('T')[0],note:g('qn').value,
-    products:applyCustomImagesFromDB(JSON.parse(JSON.stringify(ps))),
+    products:snapProds,
     settings:{ct:g('ct').value,cv:gn('cv'),fr:gn('fr'),cu:cur(),ra:rate(),kc:gn('kc'),kp:gn('kp'),kl:gn('kl'),ki:gn('ki'),ko:gn('ko'),du:getDuty(),va:getVAT(),splitMode,shipCNisCNY},
     totalCost:ps.reduce((s,p)=>s+calc(p,ps).tot,0),currency:cur()
   };
@@ -1542,9 +1543,10 @@ function saveDraftQuote(){
   nameEl.style.border='';
   if(!ps.length){alert('Dodaj produkty przed zapisaniem wyceny.');return}
   const quotes=getQuotes();
+  const snapProds2=applyCustomImagesFromDB(JSON.parse(JSON.stringify(ps))).map(p=>({...p,_pu:calc(p,ps).pu}));
   const snap={
     id:Date.now(),name,date:new Date().toISOString().split('T')[0],note:g('qn').value,
-    products:applyCustomImagesFromDB(JSON.parse(JSON.stringify(ps))),
+    products:snapProds2,
     settings:{ct:g('ct').value,cv:gn('cv'),fr:gn('fr'),cu:cur(),ra:rate(),kc:gn('kc'),kp:gn('kp'),kl:gn('kl'),ki:gn('ki'),ko:gn('ko'),du:getDuty(),va:getVAT(),splitMode,shipCNisCNY},
     totalCost:ps.reduce((s,p)=>s+calc(p,ps).tot,0),currency:cur(),
     draft:true
@@ -3314,10 +3316,8 @@ function previewQuoteById(qid){
   const sets=q.settings||{};
   const cu=sets.cu||q.currency||'PLN';
   const totalCost=q.totalCost?q.totalCost.toFixed(2)+' '+cu:'—';
-  const liveCu=cur();
   const rows=prods.map(p=>{
-    const res=calc(p,prods);
-    const pu=res.pu;
+    const pu=p._pu!=null?p._pu:_calcWithSettings(p,prods,sets).pu;
     return `<tr>
     <td style="padding:5px 8px">${p.imageUrl?`<img src="${escHtml(p.imageUrl)}" style="width:32px;height:32px;object-fit:cover;border-radius:4px;display:block">`:'<div style="width:32px;height:32px;background:var(--color-background-secondary,#f5f4f1);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:16px">📦</div>'}</td>
     <td style="padding:5px 8px;font-size:10px;font-family:monospace;color:var(--blue)">${escHtml(p.sku||'—')}</td>
@@ -3326,7 +3326,7 @@ function previewQuoteById(qid){
     <td style="padding:5px 8px;text-align:right;font-size:11px">¥${(parseFloat(p.priceCNY)||0).toFixed(2)}</td>
     <td style="padding:5px 8px;text-align:right;font-size:11px">${(parseFloat(p.cbm)||0).toFixed(4)} m³</td>
     <td style="padding:5px 8px;text-align:right;font-size:11px">${p.hs?escHtml(p.hs):'—'}</td>
-    <td style="padding:5px 8px;text-align:right;font-size:12px;font-weight:700;color:var(--or);white-space:nowrap">${pu?pu.toFixed(2)+' '+liveCu:'—'}</td>
+    <td style="padding:5px 8px;text-align:right;font-size:12px;font-weight:700;color:var(--or);white-space:nowrap">${pu?pu.toFixed(2)+' '+cu:'—'}</td>
   </tr>`;
   }).join('');
   g('dqp-body').innerHTML=`
