@@ -3279,8 +3279,8 @@ function _calcWithSettings(p,all,s){
   const isCNY=s.shipCNisCNY!==false;
   const q2=Math.max(p.qty||0,1);
   const pCNY=parseFloat(p.priceCNY)||0;
-  const dr=(p.duty!==null&&p.duty!==undefined&&p.duty!==''?parseFloat(p.duty):(parseFloat(s.du)||0))/100;
-  const vr=(parseFloat(s.va)||23)/100;
+  const dr=(p.duty!==null&&p.duty!==undefined&&p.duty!==''?parseFloat(p.duty):(s.du!=null&&s.du!==''?parseFloat(s.du):0))/100;
+  const vr=(s.va!=null&&s.va!==''?parseFloat(s.va):23)/100;
   const cbm=parseFloat(p.cbm)||0;
   const ex=parseFloat(p.extraCosts)||0;
   const rawSCN=parseFloat(p.shipCN)||0;
