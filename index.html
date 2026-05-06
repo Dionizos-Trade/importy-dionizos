@@ -314,7 +314,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
   <div class="tnav-wrap">
     <button class="tnav on" onclick="sv('calc')">📊 Kalkulator</button>
     <button class="tnav" onclick="sv('import')">📂 Import Excel</button>
-    <button class="tnav" onclick="sv('sim')">🚢 Symulacja</button>
+
     <button class="tnav" onclick="sv('quotes')">💾 Wyceny</button>
     <button class="tnav" onclick="sv('products')">📦 Produkty</button>
     <button class="tnav" onclick="sv('hs')">🏷️ Kody HS</button>
@@ -482,14 +482,6 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
     </div>
     <input type="file" id="fi" accept=".xlsx,.xls,.csv" style="display:none" onchange="hf(event)">
     <div id="ia"></div>
-  </div>
-</div>
-
-<!-- SYMULACJA -->
-<div class="fullview" id="vsim">
-  <div style="max-width:660px">
-    <div style="font-size:13px;font-weight:600;margin-bottom:11px">Symulacja: porównanie kontenerów</div>
-    <div id="sb"></div>
   </div>
 </div>
 
@@ -808,13 +800,13 @@ function escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt
 
 // ═══ VIEWS ═══
 function sv(v){
-  const map={calc:'vc',import:'vim',sim:'vsim',quotes:'vquotes',products:'vproducts',hs:'vhs',deliveries:'vdeliveries'};
-  const order=['calc','import','sim','quotes','products','hs','deliveries'];
+  const map={calc:'vc',import:'vim',quotes:'vquotes',products:'vproducts',hs:'vhs',deliveries:'vdeliveries'};
+  const order=['calc','import','quotes','products','hs','deliveries'];
   Object.entries(map).forEach(([k,id])=>{
     const el=g(id);if(el)el.style.display=k===v?(k==='calc'?'flex':'flex'):'none';
   });
   document.querySelectorAll('.tnav').forEach((b,i)=>b.classList.toggle('on',order[i]===v));
-  if(v==='sim')rsim();
+
   if(v==='quotes')renderQuotes();
   if(v==='products')renderProductsDB();
   if(v==='hs')renderHS();
@@ -1059,28 +1051,6 @@ function rx(){
 }
 
 // ═══ SIMULATION ═══
-function rsim(){
-  const c=cur(),f=getFr(),sh=getShared();
-  const conts=[{l:"20' GP",v:33},{l:"40' GP",v:60},{l:"40' HQ",v:68}];
-  const tc=ps.reduce((s,p)=>s+(parseFloat(p.cbm)||0),0);
-  const sp=ps.length?ps:[{name:'Przykład',qty:100,priceCNY:10,cbm:0.5,weight:10,shipCN:0,duty:null,extraCosts:0}];
-  g('sb').innerHTML='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:14px">'+
-    conts.map(cn=>{const pct=cn.v>0?tc/cn.v*100:0,fpm=cn.v>0?f/cn.v:0,col=pct>100?'#E24B4A':pct>85?'#BA7517':'#1D9E75';
-    return`<div style="background:var(--color-background-primary,#fff);border:.5px solid var(--color-border-tertiary,#e0dedd);border-radius:8px;padding:12px"><div style="font-weight:500;margin-bottom:4px">${cn.l}</div><div style="font-size:11px;color:var(--color-text-secondary,#6b6b6b)">Pojemność: ${cn.v} m³</div><div style="font-size:11px;color:var(--color-text-secondary,#6b6b6b);margin-bottom:7px">Fracht/m³: ${fpm.toFixed(0)} ${c}</div><div style="font-size:22px;font-weight:500;color:${col};margin-bottom:3px">${pct.toFixed(1)}%</div>${pct>100?'<span style="background:#FCEBEB;color:#A32D2D;font-size:9px;padding:2px 7px;border-radius:7px">Nie mieści się</span>':pct>85?'<span style="background:#FAEEDA;color:#854F0B;font-size:9px;padding:2px 7px;border-radius:7px">Prawie pełny</span>':'<span style="background:#EAF3DE;color:#3B6D11;font-size:9px;padding:2px 7px;border-radius:7px">OK</span>'}</div>`}).join('')+'</div>'+
-    '<div style="overflow-x:auto"><table class="pt"><thead><tr><th>Produkt</th>'+conts.map(cn=>`<th>${cn.l}</th>`).join('')+'</tr></thead><tbody>'+
-    sp.map((p,i)=>{
-      const cells=conts.map(cn=>{
-        const r2=rate(),fpm2=cn.v>0?f/cn.v:0,cbm=parseFloat(p.cbm)||0,frs=cbm*fpm2;
-        const q=Math.max(p.qty||0,1),pc=parseFloat(p.priceCNY)||0;
-        const dr=(p.duty!==null&&p.duty!==undefined?parseFloat(p.duty):getDuty())/100,vr=getVAT()/100;
-        const pv=q*pc*r2,scn=shipCNisCNY?(parseFloat(p.shipCN)||0)*r2:(parseFloat(p.shipCN)||0);
-        const tc2=sp.reduce((s,x)=>s+(parseFloat(x.cbm)||0),0),share=tc2>0?cbm/tc2:0;
-        const cif=pv+scn+frs,da=cif*dr,va2=(cif+da)*vr;
-        return`<td class="chi">${((pv+scn+frs+sh*share+da+va2+(parseFloat(p.extraCosts)||0))/q).toFixed(2)} ${c}</td>`;
-      }).join('');
-      return`<tr><td><span class="cc" style="background:${COLS[i%COLS.length]}"></span>${escHtml(p.name||'P'+(i+1))}</td>${cells}</tr>`;
-    }).join('')+'</tbody></table></div>';
-}
 
 // ═══ SIDE PANEL ═══
 function cc(){g('cvr').style.display=g('ct').value==='0'?'block':'none';rc()}
