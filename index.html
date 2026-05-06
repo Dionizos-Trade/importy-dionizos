@@ -660,6 +660,10 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
       <button onclick="g('del-qp-modal').style.display='none'" style="border:none;background:transparent;cursor:pointer;font-size:18px;color:var(--color-text-secondary,#6b6b6b);line-height:1;padding:2px 6px">✕</button>
     </div>
     <div class="del-qp-body" id="dqp-body"></div>
+    <div style="padding:10px 16px;border-top:.5px solid var(--color-border-tertiary,#e0dedd);display:flex;gap:8px;justify-content:flex-end;flex-shrink:0;position:sticky;bottom:0;background:var(--color-background-primary,#fff)">
+      <button onclick="g('del-qp-modal').style.display='none'" style="height:32px;padding:0 14px;font-size:12px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:6px;cursor:pointer;background:transparent">Zamknij</button>
+      <button id="dqp-load-btn" onclick="" style="height:32px;padding:0 16px;font-size:12px;border:none;border-radius:6px;cursor:pointer;font-weight:500;background:var(--or);color:white">📊 Wczytaj do kalkulatora</button>
+    </div>
   </div>
 </div>
 
@@ -3324,6 +3328,8 @@ function previewQuoteById(qid){
     </div>
     ${q.note?`<div style="margin-top:10px;font-size:11px;color:var(--color-text-secondary,#6b6b6b);padding:8px 10px;background:var(--orl);border-radius:6px">📝 ${escHtml(q.note)}</div>`:''}
   `;
+  const loadBtn=g('dqp-load-btn');
+  if(loadBtn)loadBtn.onclick=()=>{g('del-qp-modal').style.display='none';loadQuote(q.id);};
   modal.style.display='flex';
 }
 
