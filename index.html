@@ -569,7 +569,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
       <button onclick="openNewDeliveryForm()" style="height:30px;padding:0 14px;font-size:11px;border:none;border-radius:6px;cursor:pointer;font-weight:500;background:var(--or);color:white">+ Nowa dostawa</button>
     </div>
     <div class="del-filters">
-      <input id="del-search" placeholder="🔍 Szukaj po nazwie, AWB, przewoźniku…" oninput="renderDeliveries()" style="flex:1;min-width:180px;height:30px;font-size:11px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:6px;padding:0 9px;background:var(--color-background-primary,#fff);color:var(--color-text-primary,#1a1a1a)">
+      <input id="del-search" placeholder="🔍 Szukaj po nazwie, AWB, przewoźniku, SKU lub produkcie…" oninput="renderDeliveries()" style="flex:1;min-width:180px;height:30px;font-size:11px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:6px;padding:0 9px;background:var(--color-background-primary,#fff);color:var(--color-text-primary,#1a1a1a)">
       <button class="del-filter-btn on" id="del-f-all" onclick="setDelFilter('all')">Wszystkie</button>
       <button class="del-filter-btn" id="del-f-ordered" onclick="setDelFilter('ordered')">📋 Zamówione</button>
       <button class="del-filter-btn" id="del-f-transit" onclick="setDelFilter('transit')">🚢 W drodze</button>
@@ -3042,7 +3042,14 @@ function renderDeliveries(){
   }else if(delFilterStatus!=='all'){
     filtered=filtered.filter(d=>d.status===delFilterStatus);
   }
-  if(q)filtered=filtered.filter(d=>(d.name||'').toLowerCase().includes(q)||(d.awb||'').toLowerCase().includes(q)||(d.carrier||'').toLowerCase().includes(q));
+  const _sq=q?getQuotes():[];
+  if(q)filtered=filtered.filter(d=>{
+    if((d.name||'').toLowerCase().includes(q)||(d.awb||'').toLowerCase().includes(q)||(d.carrier||'').toLowerCase().includes(q))return true;
+    if(d.quoteId){const lq=_sq.find(qq=>qq.id===d.quoteId);if(lq&&lq.products)return lq.products.some(p=>(p.name||'').toLowerCase().includes(q)||(p.sku||'').toLowerCase().includes(q));}
+    return false;
+  });
+  const matchedProdsMap={};
+  if(q)filtered.forEach(d=>{if(d.quoteId){const lq=_sq.find(qq=>qq.id===d.quoteId);if(lq&&lq.products){const mp=lq.products.filter(p=>(p.name||'').toLowerCase().includes(q)||(p.sku||'').toLowerCase().includes(q));if(mp.length)matchedProdsMap[d.id]=mp;}}});
   if(!filtered.length){
     el.innerHTML='<div style="text-align:center;padding:44px 20px;color:var(--color-text-secondary,#6b6b6b)"><div style="font-size:34px;margin-bottom:8px">🚢</div><div style="font-size:13px;font-weight:500">Brak dostaw</div><div style="margin-top:5px;font-size:11px">Utwórz dostawę z wyceny roboczej lub kliknij "+ Nowa dostawa".</div></div>';
     return;
@@ -3087,6 +3094,8 @@ function renderDeliveries(){
 
     const datesRow=(d.etd||d.eta)?`<div style="margin-top:8px;font-size:10px;color:var(--color-text-secondary,#6b6b6b);display:flex;gap:16px;flex-wrap:wrap">${d.etd?'<span>📦 ETD: <strong>'+d.etd+'</strong></span>':''}${d.eta?'<span>🏁 ETA: <strong>'+d.eta+'</strong></span>':''}</div>`:'';
     const notesRow=d.notes?`<div style="margin-top:6px;font-size:10px;color:var(--color-text-secondary,#6b6b6b);border-top:.5px solid var(--color-border-tertiary,#e0dedd);padding-top:6px">${escHtml(d.notes)}</div>`:'';
+    const matchedProds=matchedProdsMap[d.id]||[];
+    const matchedProdsHtml=matchedProds.length?`<div style="margin-top:6px;font-size:10px;padding:5px 8px;background:#FFFDE7;border:.5px solid #FFE082;border-radius:5px;display:flex;align-items:center;flex-wrap:wrap;gap:4px">🔍 Pasujące produkty:${matchedProds.map(p=>`<span style="background:#fff;border:.5px solid #ddd;border-radius:3px;padding:1px 7px;font-weight:600">${escHtml(p.sku||'')}${p.name?' – '+escHtml(p.name):''}</span>`).join('')}</div>`:'';
 
     return `<div class="del-card" onclick="openDeliveryModal(${d.id})">
       <div class="del-card-header">
@@ -3106,6 +3115,7 @@ function renderDeliveries(){
       ${datesRow}
       ${customsWarn}
       ${notesRow}
+      ${matchedProdsHtml}
       ${nextStatus?`<div style="margin-top:9px"><button onclick="event.stopPropagation();quickUpdateStatus(${d.id},'${nextStatus}')" style="height:26px;padding:0 13px;font-size:11px;border:none;border-radius:13px;cursor:pointer;background:var(--green);color:white;font-weight:500">→ ${S_NEXT_LABEL[d.status||'ordered']}</button></div>`:''}
     </div>`;
   }).join('');
