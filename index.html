@@ -498,6 +498,12 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
         <button onclick="sv('calc')" style="height:28px;padding:0 12px;font-size:11px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:6px;cursor:pointer;background:transparent">← Kalkulator</button>
       </div>
     </div>
+    <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+      <input id="q-search" placeholder="🔍 Szukaj po nazwie, SKU lub produkcie…" oninput="renderQuotes()" style="flex:1;min-width:180px;height:30px;font-size:11px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:6px;padding:0 9px;background:var(--color-background-primary,#fff);color:var(--color-text-primary,#1a1a1a)">
+      <button class="del-filter-btn on" id="q-f-all" onclick="setQFilter('all')">Wszystkie</button>
+      <button class="del-filter-btn" id="q-f-draft" onclick="setQFilter('draft')">📋 Robocze</button>
+      <button class="del-filter-btn" id="q-f-final" onclick="setQFilter('final')">✅ Gotowe</button>
+    </div>
     <div id="quotes-list"></div>
   </div>
 </div>
@@ -1569,25 +1575,50 @@ function deleteQuote(id,e){
   sbAutoTrigger(); // sync usunięcia do chmury
 }
 
+function setQFilter(f){
+  quoteFilter=f;
+  ['all','draft','final'].forEach(x=>g('q-f-'+x)&&g('q-f-'+x).classList.toggle('on',x===f));
+  renderQuotes();
+}
 function renderQuotes(){
   const quotes=getQuotes(),el=g('quotes-list');
   if(!quotes.length){
     el.innerHTML='<div class="q-empty"><div style="font-size:32px;margin-bottom:9px">💾</div><div>Brak zapisanych wycen.</div><div style="margin-top:5px;font-size:11px">Użyj pola "Zapisz wycenę" w lewym panelu kalkulatora.</div></div>';
     return;
   }
+  const sq=((g('q-search')?g('q-search').value:'')||'').toLowerCase().trim();
+  let filtered=quotes;
+  if(quoteFilter==='draft') filtered=filtered.filter(x=>x.draft);
+  else if(quoteFilter==='final') filtered=filtered.filter(x=>!x.draft);
+  const matchedQProdsMap={};
+  if(sq){
+    filtered=filtered.filter(x=>{
+      if((x.name||'').toLowerCase().includes(sq)) return true;
+      const mp=(x.products||[]).filter(p=>(p.name||'').toLowerCase().includes(sq)||(p.sku||'').toLowerCase().includes(sq));
+      if(mp.length){matchedQProdsMap[x.id]=mp;return true;}
+      return false;
+    });
+  }
+  if(!filtered.length){
+    el.innerHTML='<div class="q-empty"><div style="font-size:28px;margin-bottom:9px">🔍</div><div>Brak wyników wyszukiwania.</div></div>';
+    return;
+  }
   const deliveries=getDeliveries();
-  el.innerHTML=quotes.map(q=>{
+  el.innerHTML=filtered.map(q=>{
     const existingDel=q.draft?deliveries.find(d=>d.quoteId===q.id):null;
     const deliveryBtn=q.draft?(existingDel?
       `<button class="qcard-delivery" onclick="viewQuoteDelivery(${existingDel.id},event)" title="Przejdź do powiązanej dostawy" style="background:#EAF3DE;border-color:#b2dfdb;color:#1D9E75">👁 Podgląd dostawy</button>`:
       `<button class="qcard-delivery" onclick="createDeliveryFromQuote(${q.id},event)" title="Utwórz dostawę z tej wyceny">🚢 Utwórz dostawę</button>`
     ):'';
-    return `<div class="qcard${q.draft?' qcard-draft':''}" onclick="loadQuote(${q.id})">
+    const mp=matchedQProdsMap[q.id]||[];
+    const mpHtml=mp.length?`<div style="width:100%;margin-top:5px;font-size:10px;padding:4px 8px;background:#FFFDE7;border:.5px solid #FFE082;border-radius:5px;display:flex;align-items:center;flex-wrap:wrap;gap:4px">🔍${mp.map(p=>`<span style="background:#fff;border:.5px solid #ddd;border-radius:3px;padding:1px 6px;font-weight:600">${escHtml(p.sku||'')}${p.name?' – '+escHtml(p.name):''}</span>`).join('')}</div>`:'';
+    return `<div class="qcard${q.draft?' qcard-draft':''}" onclick="loadQuote(${q.id})" style="flex-wrap:wrap">
     <div class="qcard-dot" style="${q.draft?'background:#7f8c8d':''}">${(q.name||'W').charAt(0).toUpperCase()}</div>
     <div class="qcard-body"><div class="qcard-name">${escHtml(q.name)}${q.draft?' <span style="font-size:9px;background:#7f8c8d;color:#fff;border-radius:3px;padding:1px 5px;font-weight:700;vertical-align:middle;letter-spacing:.03em">ROBOCZA</span>':''}</div><div class="qcard-meta">${q.date} · ${(q.products||[]).length} produktów${q.note?' · '+escHtml(q.note):''}</div></div>
     <div class="qcard-price">${q.totalCost?q.totalCost.toFixed(0)+' '+q.currency:''}</div>
     ${deliveryBtn}
     <button class="qcard-del" onclick="deleteQuote(${q.id},event)" title="Usuń">🗑</button>
+    ${mpHtml}
   </div>`;
   }).join('');
 }
@@ -3003,6 +3034,7 @@ async function fbRemoveProductDB(key){if(fbIsReady())await fbRoot('products/'+_s
 async function fbRemoveHS(h){if(fbIsReady()&&h)await fbRoot('hsdb/'+_hsKey(h)).remove();}
 // ═══ DOSTAWY ═══
 let delFilterStatus='all';
+let quoteFilter='all';
 
 function getDeliveries(){try{return JSON.parse(localStorage.getItem('icalc_deliveries')||'[]');}catch{return[];}}
 function setDeliveries(arr){try{localStorage.setItem('icalc_deliveries',JSON.stringify(arr));}catch(e){alert('Błąd zapisu dostaw — brak miejsca w localStorage.');}}
