@@ -792,6 +792,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
 const COLS=['#E8650A','#1D9E75','#378ADD','#D4537E','#BA7517','#534AB7','#D85A30','#3B6D11','#0F6E56','#993556','#185FA5','#854F0B'];
 let splitMode='cbm', activeTab='d', ps=[];
 let clMargin=30;
+let _loadedQuoteId=null;
 let shipCNisCNY=true;
 let hsDB=[];
 let taricSel=null;
@@ -1559,6 +1560,13 @@ function loadQuote(id){
     const customName=customNameMap['sku:'+p.sku]||customNameMap['name:'+p.name]||'';
     return {...p, imageUrl: customImg||sessionImg||p.imageUrl||'', ...(customName&&{name:customName})};
   });
+  _loadedQuoteId=q.id;
+  if(q.clientPricing){
+    clMargin=q.clientPricing.defaultMargin!=null?q.clientPricing.defaultMargin:clMargin;
+    const _cpMap={};
+    (q.clientPricing.products||[]).forEach(x=>{if(x._id)_cpMap[x._id]=x;if(x.sku)_cpMap['sku:'+x.sku]=x;});
+    ps.forEach(p=>{const _sv=_cpMap[p._id]||_cpMap['sku:'+p.sku];if(_sv){p.clientMargin=_sv.clientMargin;p.clientPrice=_sv.clientPrice;}});
+  }
   const s=q.settings||{};
   ['ct','cv','fr','cu','ra','kc','kp','kl','ki','ko','du','va'].forEach(k=>{if(s[k]!==undefined&&g(k))g(k).value=s[k];});
   splitMode=s.splitMode||'cbm';shipCNisCNY=s.shipCNisCNY!==false;
@@ -2503,13 +2511,25 @@ function rcl(){
   const avgMargin=totalCost>0?(totalProfit/totalCost)*100:0;
 
   let html='';
+  // Banner: saved client pricing
+  let _savedCp=null;
+  if(_loadedQuoteId){const _lq=getQuotes().find(x=>x.id===_loadedQuoteId);if(_lq&&_lq.clientPricing)_savedCp=_lq.clientPricing;}
+  if(_savedCp){
+    html+='<div style="background:#EEF3FA;border-bottom:.5px solid #c5d9f2;padding:7px 14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11px">';
+    html+='<span>ℹ️ <strong style="color:var(--blue)">Ceny z zapisanej wyceny hurtowej</strong></span>';
+    html+='<span style="color:#888">· zapisano: '+_savedCp.savedAt+'</span>';
+    if(_savedCp.totalRevenue)html+='<span style="color:#888">· przychód: '+Math.round(_savedCp.totalRevenue).toLocaleString('pl-PL')+' '+(_savedCp.currency||'PLN')+'</span>';
+    html+='<button onclick="loadSavedClientPricing()" style="height:22px;padding:0 9px;font-size:10px;border:.5px solid var(--blue);border-radius:4px;background:white;color:var(--blue);cursor:pointer;font-weight:600;margin-left:4px">↺ Wczytaj zapisane ceny</button>';
+    html+='</div>';
+  }
   // Settings bar
   html+='<div style="display:flex;align-items:center;gap:10px;padding:9px 14px;background:var(--color-background-primary,#fff);border-bottom:.5px solid var(--color-border-tertiary,#e0dedd);flex-wrap:wrap">';
   html+='<span style="font-size:11px;font-weight:600;color:var(--color-text-secondary,#6b6b6b)">Marża domyślna:</span>';
   html+='<input type="number" value="'+clMargin+'" min="0" max="9999" step="1" style="width:60px;height:26px;font-size:13px;font-weight:700;border:.5px solid var(--color-border-secondary,#ccc);border-radius:5px;padding:0 6px;text-align:right" onchange="clMargin=parseFloat(this.value)||0;rcl()">';
   html+='<span style="font-size:11px">%</span>';
   html+='<button onclick="clApplyGlobalToAll()" style="height:26px;padding:0 10px;font-size:11px;border:.5px solid #ccc;border-radius:5px;cursor:pointer;background:white" title="Wyczyść indywidualne marże i użyj globalnej">↺ Resetuj marże</button>';
-  html+='<div style="margin-left:auto">';
+  html+='<div style="margin-left:auto;display:flex;gap:6px;align-items:center">';
+  html+='<button id="cl-save-btn" onclick="saveClientPricing()" style="height:28px;padding:0 12px;font-size:11px;border:.5px solid var(--blue);border-radius:6px;cursor:pointer;background:white;color:var(--blue);font-weight:600">💾 Zapisz wycenę klienta</button>';
   html+='<button onclick="exportClientPDF()" style="height:28px;padding:0 14px;font-size:11px;border:none;border-radius:6px;cursor:pointer;background:#c0392b;color:white;font-weight:600">📄 Eksport PDF dla klienta</button>';
   html+='</div></div>';
   // KPI
@@ -2565,6 +2585,37 @@ function rcl(){
   html+='</tr>';
   html+='</tbody></table></div>';
   el.innerHTML=html;
+}
+
+function saveClientPricing(){
+  if(!_loadedQuoteId){alert('Najpierw wczytaj wycenę z listy Wyceny, aby zapisać ceny klienta do niej.');return;}
+  const quotes=getQuotes();
+  const idx=quotes.findIndex(x=>x.id===_loadedQuoteId);
+  if(idx<0){alert('Nie znaleziono wyceny — zapisz ją najpierw przyciskiem "Zapisz wycenę".');return;}
+  const c=cur();
+  const totalRevenue=ps.reduce(function(s,p){const r=calc(p,ps);const margin=p.clientMargin!=null?p.clientMargin:clMargin;const cp=p.clientPrice!=null?p.clientPrice:r.pu*(1+margin/100);return s+cp*(p.qty||0);},0);
+  quotes[idx].clientPricing={
+    defaultMargin:clMargin,
+    savedAt:new Date().toISOString().split('T')[0],
+    totalRevenue:totalRevenue,
+    currency:c,
+    products:ps.map(function(p){return{_id:p._id||null,sku:p.sku||null,name:p.name||null,clientMargin:p.clientMargin!=null?p.clientMargin:null,clientPrice:p.clientPrice!=null?p.clientPrice:null};})
+  };
+  setQuotes(quotes);
+  const btn=document.getElementById('cl-save-btn');
+  if(btn){btn.innerHTML='✓ Zapisano!';btn.style.background='var(--green)';btn.style.color='white';btn.style.borderColor='var(--green)';setTimeout(function(){rcl();},1200);}
+  else rcl();
+}
+
+function loadSavedClientPricing(){
+  if(!_loadedQuoteId)return;
+  const q=getQuotes().find(x=>x.id===_loadedQuoteId);
+  if(!q||!q.clientPricing)return;
+  clMargin=q.clientPricing.defaultMargin!=null?q.clientPricing.defaultMargin:clMargin;
+  const _cpMap={};
+  (q.clientPricing.products||[]).forEach(function(x){if(x._id)_cpMap[x._id]=x;if(x.sku)_cpMap['sku:'+x.sku]=x;});
+  ps.forEach(function(p){const sv=_cpMap[p._id]||_cpMap['sku:'+p.sku];if(sv){p.clientMargin=sv.clientMargin;p.clientPrice=sv.clientPrice;}else{p.clientMargin=null;p.clientPrice=null;}});
+  rcl();
 }
 
 function exportClientPDF(){
